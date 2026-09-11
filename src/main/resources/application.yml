@@ -1,0 +1,10 @@
+#spring:
+#  datasource:
+#    url: JDBC:mysql://localhost:3306/volleyball
+#    username: root
+#    password: your_password
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
