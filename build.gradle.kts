@@ -1,7 +1,7 @@
 plugins {
     id("org.springframework.boot") version "3.3.0"
     id("io.spring.dependency-management") version "1.1.4"
-    kotlin("jvm") version "1.9.0"
+    kotlin("jvm") version "1.9.24"
     kotlin("plugin.spring") version "1.9.0"
 }
 
@@ -9,7 +9,7 @@ group = "de.atiw.volleyball"
 version = "0.0.1-SNAPSHOT"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
 }
 
 repositories {
@@ -35,7 +35,7 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 tasks.test {
