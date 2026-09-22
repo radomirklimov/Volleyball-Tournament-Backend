@@ -8,3 +8,14 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+  info:
+    title: Volleyball Tournament API
+    description: REST API for managing the volleyball tournament
+    version: 1.0.0
