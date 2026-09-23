@@ -1,13 +1,14 @@
 spring:
   datasource:
-    url: jdbc:postgresql://db.nbxzssvjtjllfruovuvf.supabase.co:5432/postgres?sslmode=require
-    username: postgres
+#    url: jdbc:postgresql://db.nbxzssvjtjllfruovuvf.supabase.co:5432/postgres?sslmode=require
+    url: jdbc:mariadb://localhost:3306/volleyball
+    username: root
     password: ${DATABASE_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    ddl-auto: validate
+  database-platform: org.hibernate.dialect.MariaDBDialect
 
 springdoc:
   api-docs:
