@@ -25,7 +25,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // MariaDB
-    runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
+//    runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
+
+    // PostgreSQL
+     runtimeOnly("org.postgresql:postgresql")
 
     // Swagger / OpenAPI
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
