@@ -19,12 +19,12 @@ class TeamController(
         return teamService.getAllTeams()
     }
 
-    @GetMapping("/{teamname}")
+    @GetMapping("/{teamId}")
     fun getTeam(
-        @PathVariable teamname: String
+        @PathVariable teamId: Int
     ): ResponseEntity<Team> {
 
-        val team = teamService.getTeam(teamname)
+        val team = teamService.getTeam(teamId)
 
         return if (team != null) {
             ResponseEntity.ok(team)

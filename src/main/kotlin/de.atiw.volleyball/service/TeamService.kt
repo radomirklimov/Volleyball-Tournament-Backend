@@ -13,7 +13,7 @@ class TeamService(
         return teamRepository.findAll()
     }
 
-    fun getTeam(teamname: String): Team? {
-        return teamRepository.findById(teamname).orElse(null)
+    fun getTeam(teamId: Int): Team? {
+        return teamRepository.findById(teamId).orElse(null)
     }
 }
