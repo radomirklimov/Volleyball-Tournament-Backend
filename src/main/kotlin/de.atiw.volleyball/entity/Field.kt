@@ -17,5 +17,5 @@ class Field(
     val fieldId: Int = 0,
 
     @Column(name = "name", length = 100, nullable = false, unique = true)
-    val name: String
+    var name: String
 )

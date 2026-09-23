@@ -25,7 +25,7 @@ class Game(
         referencedColumnName = "round_id",
         nullable = false
     )
-    val round: Round,
+    var round: Round,
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
@@ -33,7 +33,7 @@ class Game(
         referencedColumnName = "field_id",
         nullable = false
     )
-    val field: Field,
+    var field: Field,
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
@@ -41,7 +41,7 @@ class Game(
         referencedColumnName = "team_id",
         nullable = false
     )
-    val teamA: Team,
+    var teamA: Team,
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
@@ -49,7 +49,7 @@ class Game(
         referencedColumnName = "team_id",
         nullable = false
     )
-    val teamB: Team,
+    var teamB: Team,
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(
@@ -57,11 +57,11 @@ class Game(
         referencedColumnName = "team_id",
         nullable = false
     )
-    val refereeTeam: Team,
+    var refereeTeam: Team,
 
     @Column(name = "points_a", nullable = false)
-    val pointsA: Int = 0,
+    var pointsA: Int = 0,
 
     @Column(name = "points_b", nullable = false)
-    val pointsB: Int = 0
+    var pointsB: Int = 0
 )

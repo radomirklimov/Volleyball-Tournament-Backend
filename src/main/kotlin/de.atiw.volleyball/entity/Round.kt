@@ -17,5 +17,5 @@ class Round(
     val roundId: Int = 0,
 
     @Column(name = "round_number", nullable = false, unique = true)
-    val roundNumber: Int
+    var roundNumber: Int
 )

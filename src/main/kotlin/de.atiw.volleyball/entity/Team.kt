@@ -25,11 +25,11 @@ class Team(
         referencedColumnName = "group_id",
         nullable = false
     )
-    val group: TournamentGroup,
+    var group: TournamentGroup,
 
     @Column(name = "team_class", length = 100, nullable = false)
-    val teamClass: String,
+    var teamClass: String,
 
     @Column(name = "name", length = 100, nullable = false)
-    val name: String
+    var name: String
 )

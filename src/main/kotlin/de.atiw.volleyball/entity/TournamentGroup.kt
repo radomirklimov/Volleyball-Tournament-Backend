@@ -17,5 +17,5 @@ class TournamentGroup(
     val groupId: Int = 0,
 
     @Column(name = "designation", length = 10, nullable = false, unique = true)
-    val designation: String
+    var designation: String
 )

@@ -17,9 +17,30 @@ repositories {
     mavenCentral()
 }
 
+// Spring Boot's BOM pins an old docker-java client that Docker 29 rejects
+// (min API 1.40). Force a newer docker-java for Testcontainers.
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "com.github.docker-java") {
+            useVersion("3.4.0")
+            because("Docker 29 requires API >= 1.40")
+        }
+        if (requested.group == "org.testcontainers") {
+            useVersion("1.20.4")
+            because("Keep all Testcontainers modules aligned")
+        }
+    }
+}
+
 dependencies {
     // Web
     implementation("org.springframework.boot:spring-boot-starter-web")
+
+    // WebSocket (live updates at /ws/live)
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
+
+    // Validation
+    implementation("org.springframework.boot:spring-boot-starter-validation")
 
     // JPA
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -36,9 +57,14 @@ dependencies {
     // Kotlin
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Tests
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:mariadb:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 }
 
 kotlin {
@@ -47,4 +73,9 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    // Testcontainers 1.20.x defaults the Docker API version to 1.32, which
+    // Docker 29 rejects (min 1.40). Pin an explicit version instead.
+    systemProperty("api.version", "1.44")
+    environment("API_VERSION", "1.44")
+    environment("DOCKER_API_VERSION", "1.44")
 }
