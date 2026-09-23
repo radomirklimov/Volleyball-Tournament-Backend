@@ -1,0 +1,13 @@
+# Railway service config (docs: docs.railway.com/reference/config-as-code).
+# Dockerfile path is relative to the repo root, so set the service's
+# Root Directory to Volleyball-Tournament-Backend in the Railway dashboard
+# OR change dockerfilePath below to "Volleyball-Tournament-Backend/Dockerfile".
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Spring Boot has no actuator here; Railway falls back to TCP check on $PORT.
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
