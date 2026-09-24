@@ -9,6 +9,7 @@ import de.atiw.volleyball.repository.GameRepository
 import de.atiw.volleyball.repository.RoundRepository
 import de.atiw.volleyball.repository.TeamRepository
 import de.atiw.volleyball.teacher.common.BadRequestException
+import de.atiw.volleyball.teacher.common.ConflictException
 import de.atiw.volleyball.teacher.common.NotFoundException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -86,6 +87,49 @@ class GameService(
         if (!gameRepository.existsById(id)) throw NotFoundException("Game")
         gameRepository.deleteById(id)
         events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.DELETE, id))
+    }
+
+    /**
+     * Starts a game: NULL/NULL becomes 0/0. Idempotent — calling it on an
+     * already started game changes nothing and publishes no event.
+     */
+    @Transactional
+    fun startGame(id: Int): Game {
+        val game = gameRepository.findByIdForUpdate(id) ?: throw NotFoundException("Game")
+        if (game.pointsA == null || game.pointsB == null) {
+            game.pointsA = 0
+            game.pointsB = 0
+            val saved = gameRepository.save(game)
+            events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
+            return saved
+        }
+        return game
+    }
+
+    @Transactional
+    fun incrementTeamAScore(id: Int): Game = adjustScore(id, teamB = false, delta = 1)
+
+    @Transactional
+    fun decrementTeamAScore(id: Int): Game = adjustScore(id, teamB = false, delta = -1)
+
+    @Transactional
+    fun incrementTeamBScore(id: Int): Game = adjustScore(id, teamB = true, delta = 1)
+
+    @Transactional
+    fun decrementTeamBScore(id: Int): Game = adjustScore(id, teamB = true, delta = -1)
+
+    private fun adjustScore(id: Int, teamB: Boolean, delta: Int): Game {
+        val game = gameRepository.findByIdForUpdate(id) ?: throw NotFoundException("Game")
+        val side = if (teamB) "B" else "A"
+        val current = (if (teamB) game.pointsB else game.pointsA)
+            ?: throw ConflictException("Game $id has not been started.")
+        if (delta < 0 && current == 0) {
+            throw ConflictException("Team $side score cannot be decreased below 0.")
+        }
+        if (teamB) game.pointsB = current + delta else game.pointsA = current + delta
+        val saved = gameRepository.save(game)
+        events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
+        return saved
     }
 
     private data class ResolvedGameState(

@@ -232,6 +232,32 @@ Send the full object; for a score change just resend everything with the new sco
 
 - Missing game → `404`. Otherwise always allowed → `204`, empty body.
 
+## 6a. Game scoring (button actions, no request body)
+
+A `null` score means "not started yet". Five endpoints control the score with single clicks — send an empty `POST`, no body:
+
+```http
+POST /api/games/{id}/start
+POST /api/games/{id}/score/team-a/increment
+POST /api/games/{id}/score/team-a/decrement
+POST /api/games/{id}/score/team-b/increment
+POST /api/games/{id}/score/team-b/decrement
+```
+
+- Non-numeric `{id}` → `400`. Missing game → `404`.
+- All return `200` + the updated game in the `data` envelope, so no extra `GET` is needed after a click.
+- Every state-changing call broadcasts one `GAME / UPDATE` event on `/ws/live` (see section 7). Failed calls broadcast nothing.
+
+| Endpoint | Effect |
+|---|---|
+| `…/start` | `null/null` → `0/0`. Idempotent: an already started game keeps its scores (and then sends no event). |
+| `…/team-a/increment` | `scoreA + 1`. Unstarted game → `409`. |
+| `…/team-a/decrement` | `scoreA − 1`, never below `0`. Unstarted game or `scoreA == 0` → `409`. |
+| `…/team-b/increment` | `scoreB + 1`. Unstarted game → `409`. |
+| `…/team-b/decrement` | `scoreB − 1`, never below `0`. Unstarted game or `scoreB == 0` → `409`. |
+
+Only the addressed team's score changes; the other one is untouched. Rapid clicking is safe — concurrent increments are serialized server-side and none get lost.
+
 ## 7. Live updates (WebSocket)
 
 Every successful teacher write broadcasts exactly one event; failed writes broadcast nothing. This is how the public page learns about your changes without polling.
