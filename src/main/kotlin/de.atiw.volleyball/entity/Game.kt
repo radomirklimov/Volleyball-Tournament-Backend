@@ -59,9 +59,9 @@ class Game(
     )
     var refereeTeam: Team,
 
-    @Column(name = "points_a", nullable = false)
-    var pointsA: Int = 0,
+    @Column(name = "points_a", nullable = true)
+    var pointsA: Int? = null,
 
-    @Column(name = "points_b", nullable = false)
-    var pointsB: Int = 0
+    @Column(name = "points_b", nullable = true)
+    var pointsB: Int? = null
 )

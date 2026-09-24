@@ -183,9 +183,15 @@ Games are the hottest resource (live score updates). Deleting a game is always a
 Rules (all violations → `400`):
 
 - `roundId`, `fieldId`, `teamAId`, `teamBId`, `refereeTeamId` are required and must reference existing rows.
-- `scoreA`, `scoreB` are required integers `>= 0`.
+- `scoreA`, `scoreB` are optional: either a non-negative integer or `null` (omit them or send `null` for games not yet played — e.g. `"scoreA": null`).
+- Negative scores → `400`. `null` is always accepted.
 - `teamAId` and `teamBId` must be different teams.
 - `refereeTeamId` must differ from both `teamAId` and `teamBId`.
+
+Game responses carry `scoreA`/`scoreB` as number or `null`:
+
+```json
+{ "data": { "gameId": "17", "roundId": "1", "fieldId": "1", "teamAId": "1", "teamBId": "2", "refereeTeamId": "3", "scoreA": null, "scoreB": null } }
 
 → `201` + created game:
 
@@ -206,7 +212,7 @@ Rules (all violations → `400`):
 
 ### Update game — `PUT /api/teacher/games/{id}` (incl. score updates)
 
-Send the full object; for a score change just resend everything with the new scores:
+Send the full object; for a score change just resend everything with the new scores. Sending `"scoreA": null` clears a score back to "not played":
 
 ```json
 {

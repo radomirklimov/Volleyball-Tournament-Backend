@@ -109,6 +109,40 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     }
 
     @Test
+    fun `createGame accepts null scores`() {
+        val s = setup()
+
+        val result = mockMvc.post("/api/teacher/games") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
+        }.andExpect { status { isCreated() } }.andReturn()
+
+        val data = objectMapper.readTree(result.response.contentAsString).get("data")
+        assert(data.get("scoreA").isNull)
+        assert(data.get("scoreB").isNull)
+    }
+
+    @Test
+    fun `updateGame can clear scores to null`() {
+        val s = setup()
+        val round = roundRepository.findById(s.roundId).orElseThrow()
+        val field = fieldRepository.findById(s.fieldId).orElseThrow()
+        val teamA = teamRepository.findById(s.teamAId).orElseThrow()
+        val teamB = teamRepository.findById(s.teamBId).orElseThrow()
+        val ref = teamRepository.findById(s.refereeId).orElseThrow()
+        val game = gameRepository.save(Game(round = round, field = field, teamA = teamA, teamB = teamB, refereeTeam = ref, pointsA = 25, pointsB = 21))
+
+        val result = mockMvc.put("/api/teacher/games/${game.gameId}") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
+        }.andExpect { status { isOk() } }.andReturn()
+
+        val data = objectMapper.readTree(result.response.contentAsString).get("data")
+        assert(data.get("scoreA").isNull)
+        assert(data.get("scoreB").isNull)
+    }
+
+    @Test
     fun `createGame rejects same team for A and B`() {
         val s = setup()
 

@@ -37,8 +37,8 @@ data class GameDto(
     val teamAId: String,
     val teamBId: String,
     val refereeTeamId: String,
-    val scoreA: Int,
-    val scoreB: Int
+    val scoreA: Int?,
+    val scoreB: Int?
 )
 
 fun TournamentGroup.toDto() = GroupDto(

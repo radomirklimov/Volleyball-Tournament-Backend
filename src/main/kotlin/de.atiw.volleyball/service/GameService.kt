@@ -94,8 +94,8 @@ class GameService(
         val teamA: de.atiw.volleyball.entity.Team,
         val teamB: de.atiw.volleyball.entity.Team,
         val referee: de.atiw.volleyball.entity.Team,
-        val pointsA: Int,
-        val pointsB: Int
+        val pointsA: Int?,
+        val pointsB: Int?
     )
 
     private fun resolveState(
@@ -118,8 +118,8 @@ class GameService(
         val referee = if (refereeTeamId == null) throw BadRequestException("Referee team ID is required.")
         else teamRepository.findById(refereeTeamId).orElse(null)
             ?: throw BadRequestException("Referee team $refereeTeamId does not exist.")
-        val pointsA = if (scoreA == null || scoreA < 0) throw BadRequestException("Score A must be >= 0.") else scoreA
-        val pointsB = if (scoreB == null || scoreB < 0) throw BadRequestException("Score B must be >= 0.") else scoreB
+        val pointsA = if (scoreA != null && scoreA < 0) throw BadRequestException("Score A must be >= 0.") else scoreA
+        val pointsB = if (scoreB != null && scoreB < 0) throw BadRequestException("Score B must be >= 0.") else scoreB
         if (teamA.teamId == teamB.teamId) throw BadRequestException("Team A and team B must be different.")
         if (referee.teamId == teamA.teamId) throw BadRequestException("Referee team must differ from team A.")
         if (referee.teamId == teamB.teamId) throw BadRequestException("Referee team must differ from team B.")
