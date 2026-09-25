@@ -164,6 +164,26 @@ class PortIsolationIT : RealPortIT() {
 
         val adminDocs = assertStatus(get(adminPort, "/v3/api-docs/admin"), 200, "admin api-docs")
         assertTrue(adminDocs.body().contains("/api/admin/groups"), adminDocs.body())
+        assertTrue(
+            adminDocs.body().contains("/api/admin/rounds/{id}/generate-games/round-robin"),
+            "admin docs must document round-robin generation"
+        )
+        assertTrue(
+            adminDocs.body().contains("/api/admin/rounds/{id}/generate-games/knockout"),
+            "admin docs must document knockout generation"
+        )
+        assertTrue(
+            adminDocs.body().contains("/api/admin/rounds/{id}/generate-games/consolation"),
+            "admin docs must document consolation generation"
+        )
+        assertTrue(
+            adminDocs.body().contains("/api/games/{id}/end"),
+            "admin docs must document the game end endpoint"
+        )
+        assertTrue(
+            !publicDocs.body().contains("generate-games") && !publicDocs.body().contains("/api/games/{id}/end"),
+            "public docs must not contain admin-only game endpoints"
+        )
 
         assertStatus(get(publicPort, "/v3/api-docs/admin"), 404, "admin docs on public port")
         assertStatus(get(publicPort, "/v3/api-docs"), 404, "aggregate docs on public port")

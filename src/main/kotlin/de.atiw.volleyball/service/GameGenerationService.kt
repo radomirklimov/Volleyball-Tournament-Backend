@@ -102,7 +102,10 @@ class GameGenerationService(
     }
 
     private fun targetRound(roundId: Int): Round =
-        roundRepository.findById(roundId).orElse(null) ?: throw NotFoundException("Round")
+        // Locked for update: concurrent generations for the same round
+        // serialize, so the duplicate check below never misses games another
+        // in-flight generation is creating.
+        roundRepository.findByIdForUpdate(roundId) ?: throw NotFoundException("Round")
 
     private fun teamIdsOfGroup(groupId: Int): List<Int> =
         teamRepository.findAll()

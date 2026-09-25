@@ -261,6 +261,36 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     }
 
     @Test
+    fun `updateGame and deleteGame return 404 for non-numeric id`() {
+        val s = setup()
+
+        mockMvc.put("/api/admin/games/abc") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s))
+        }.andExpect {
+            status { isNotFound() }
+            jsonPath("$.error.code") { value("RESOURCE_NOT_FOUND") }
+        }
+
+        mockMvc.delete("/api/admin/games/abc")
+            .andExpect {
+                status { isNotFound() }
+                jsonPath("$.error.code") { value("RESOURCE_NOT_FOUND") }
+            }
+    }
+
+    @Test
+    fun `createGame with malformed JSON returns 400`() {
+        mockMvc.post("/api/admin/games") {
+            contentType = MediaType.APPLICATION_JSON
+            content = "{invalid json"
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.error.code") { value("BAD_REQUEST") }
+        }
+    }
+
+    @Test
     fun `deleteGame returns 204`() {
         val s = setup()
         val round = roundRepository.findById(s.roundId).orElseThrow()

@@ -474,6 +474,51 @@ class GameGenerationTest : AbstractIntegrationTest() {
         assert(gameRepository.findAll().count { it.round.roundId == s.target.roundId } == 2)
     }
 
+    @Test
+    fun `full tournament flow from round-robin in round 1 to the final`() {
+        // Group stage generated directly into the round_number = 1 round.
+        val groups = listOf("A", "B", "C", "D").map { group(it) }
+        val pairs = groups.map { g -> team(g, "${g.designation}1") to team(g, "${g.designation}2") }
+        val groupStage = round(1)
+        field("Court 1")
+        val semi = round(2)
+        val final = round(3)
+
+        generate("round-robin", groupStage.roundId)
+            .andExpect { jsonPath("$.data.gamesCreated") { value(4) } }
+
+        // Finish every group game with the first team winning.
+        for (game in gameRepository.findAll().filter { it.round.roundId == groupStage.roundId }) {
+            putScores(game, 25, 10)
+            mockMvc.post("/api/games/${game.gameId}/start").andExpect { status { isOk() } }
+            mockMvc.post("/api/games/${game.gameId}/end").andExpect { status { isOk() } }
+        }
+
+        // Semifinals from the group-stage leaderboards: A1vD1, B1vC1.
+        val leaders = pairs.map { it.first }
+        val (a1, b1, c1, d1) = leaders
+        val semiIds = generatedGameIds(
+            generate("knockout", semi.roundId)
+                .andExpect { jsonPath("$.data.gamesCreated") { value(2) } }
+                .andReturn().response.contentAsString
+        )
+        val semiGames = semiIds.map { gameRepository.findById(it).orElseThrow() }
+        assert(semiGames[0].teamA.teamId == a1.teamId && semiGames[0].teamB.teamId == d1.teamId)
+        assert(semiGames[1].teamA.teamId == b1.teamId && semiGames[1].teamB.teamId == c1.teamId)
+
+        // A1 and C1 win their semifinals; the final is A1 vs C1.
+        finishGame(semiIds[0], 25, 20)
+        finishGame(semiIds[1], 20, 25)
+        val finalIds = generatedGameIds(
+            generate("knockout", final.roundId)
+                .andExpect { jsonPath("$.data.gamesCreated") { value(1) } }
+                .andReturn().response.contentAsString
+        )
+        val finalGame = gameRepository.findById(finalIds.single()).orElseThrow()
+        assert(finalGame.teamA.teamId == a1.teamId && finalGame.teamB.teamId == c1.teamId)
+        assert(finalGame.status == GameStatus.SCHEDULED)
+    }
+
     // ---- helpers ----
 
     private fun gameBody(game: Game, scoreA: Int, scoreB: Int): Map<String, Any?> {
