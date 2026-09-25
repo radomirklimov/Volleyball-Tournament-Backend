@@ -27,8 +27,11 @@ import org.springframework.transaction.annotation.Transactional
  * partial state.
  *
  * Shared deterministic rules:
- * - fields: all fields sorted by `field_id ASC`, assigned in rotation
- *   (game 1 -> field 1, game 2 -> field 2, ... wrapping around);
+ * - fields: each game is played on its group's field — groups sorted by
+ *   `group_id ASC` map onto fields sorted by `field_id ASC` (group 1 ->
+ *   field 1, group 2 -> field 2, ... wrapping around when the counts do not
+ *   match). A game's group is Team A's group, so all round-robin games of
+ *   one group share one field;
  * - referees: all teams sorted by `team_id ASC`, first team that is neither
  *   Team A nor Team B (never random);
  * - generated games always start as `SCHEDULED` with `0 : 0`.
@@ -198,14 +201,24 @@ class GameGenerationService(
     /**
      * Creates every pairing not already present in the target round.
      * Existing pairings are skipped untouched (no score/status/field/referee
-     * change, no realtime event). New games get rotating fields, a valid
+     * change, no realtime event). New games get their group's field, a valid
      * referee, `0 : 0` and `SCHEDULED`; each one publishes a `GAME / CREATE`
      * event after commit via [GameService].
      */
     private fun createNewGames(roundId: Int, pairs: List<Pair<Int, Int>>): GenerationResult {
         val existing = existingPairs(roundId)
         val fields: List<Field> = fieldRepository.findAll().sortedBy { it.fieldId }
-        val allTeams: List<Int> = teamRepository.findAll().map { it.teamId }.sorted()
+        val teams = teamRepository.findAll()
+        val allTeams: List<Int> = teams.map { it.teamId }.sorted()
+        // Group-synced fields: group position (by group_id ASC) selects the
+        // field (by field_id ASC), wrapping around on count mismatch. A game
+        // belongs to Team A's group.
+        val groupIndex: Map<Int, Int> = groupRepository.findAll()
+            .map { it.groupId }
+            .sorted()
+            .withIndex()
+            .associate { (index, groupId) -> groupId to index }
+        val teamGroup: Map<Int, Int> = teams.associate { it.teamId to it.group.groupId }
         val created = mutableListOf<Game>()
         var skipped = 0
         for ((a, b) in pairs) {
@@ -218,7 +231,7 @@ class GameGenerationService(
             }
             val referee = allTeams.firstOrNull { it != a && it != b }
                 ?: throw BadRequestException("Cannot generate games: no valid referee team available for $a vs $b.")
-            val field = fields[created.size % fields.size]
+            val field = fields[(groupIndex[teamGroup[a]] ?: 0) % fields.size]
             created += gameService.create(roundId, field.fieldId, a, b, referee, 0, 0)
         }
         return GenerationResult(created, skipped)

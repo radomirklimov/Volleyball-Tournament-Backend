@@ -419,7 +419,11 @@ Response (`201`):
 | `…/knockout` | First stage (no previous knockout games): top team of each group leaderboard (`round_number = 1`) qualifies; count must be a power of two (`400` otherwise). Later stages: winners of the previous knockout stage qualify — it must be fully `FINISHED` (`409` otherwise) with exactly one winner per game (draw → `400`). Deterministic bracket pairing (first vs last). |
 | `…/consolation` | Lowest team of each group leaderboard (`round_number = 1`) participates. Even count required (`400` if odd, no byes); each team plays once, never against its own group. |
 
-Shared rules: fields rotate deterministically by `field_id` (no fields → `400`);
+Shared rules: each game is played on its group's field — groups ordered by
+`group_id` map onto fields ordered by `field_id` (group 1 → field 1, group 2
+→ field 2, …), wrapping around when the counts don't match. A game's group is
+Team A's group, so all of one group's round-robin games share a field.
+No fields → `400`;
 referee is the lowest-ID team not participating (none available → `400`, e.g.
 only two teams exist); existing games are never modified.
 

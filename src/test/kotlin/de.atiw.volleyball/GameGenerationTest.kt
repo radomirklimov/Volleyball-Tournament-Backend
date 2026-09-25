@@ -114,9 +114,10 @@ class GameGenerationTest : AbstractIntegrationTest() {
             val ref = game.get("refereeTeamId").asText().toInt()
             assert(ref != a && ref != b) { "referee must not participate: $game" }
         }
-        // Fields rotate deterministically: f1, f2, f1, f2, ...
+        // Group-synced fields: the single group plays everything on field 1,
+        // even though a second field exists (no rotation across games).
         val fieldIds = games.map { it.get("fieldId").asText().toInt() }
-        assert(fieldIds == listOf(f1.fieldId, f2.fieldId, f1.fieldId, f2.fieldId, f1.fieldId, f2.fieldId))
+        assert(fieldIds.all { it == f1.fieldId }) { "all group A games must be on field 1: $fieldIds" }
     }
 
     @Test
@@ -126,7 +127,8 @@ class GameGenerationTest : AbstractIntegrationTest() {
         val teamsA = (1..4).map { team(gA, "A$it") }
         val teamsB = (1..4).map { team(gB, "B$it") }
         val target = round(2)
-        field("Court 1")
+        val f1 = field("Court 1")
+        val f2 = field("Court 2")
 
         generate("round-robin", target.roundId)
             .andExpect {
@@ -138,9 +140,36 @@ class GameGenerationTest : AbstractIntegrationTest() {
         val groupOf = (teamsA + teamsB).associate { it.teamId to it.group.groupId }
         val games = gameRepository.findAll().filter { it.round.roundId == target.roundId }
         assert(games.size == 12)
-        val inA = games.count { groupOf[it.teamA.teamId] == gA.groupId && groupOf[it.teamB.teamId] == gA.groupId }
-        val inB = games.count { groupOf[it.teamA.teamId] == gB.groupId && groupOf[it.teamB.teamId] == gB.groupId }
-        assert(inA == 6 && inB == 6) { "6 group A and 6 group B games expected, got A=$inA B=$inB" }
+        val inA = games.filter { groupOf[it.teamA.teamId] == gA.groupId && groupOf[it.teamB.teamId] == gA.groupId }
+        val inB = games.filter { groupOf[it.teamA.teamId] == gB.groupId && groupOf[it.teamB.teamId] == gB.groupId }
+        assert(inA.size == 6 && inB.size == 6) { "6 group A and 6 group B games expected" }
+        // Group-synced fields: group A entirely on field 1, group B on field 2.
+        assert(inA.all { it.field.fieldId == f1.fieldId }) { "group A games must be on field 1" }
+        assert(inB.all { it.field.fieldId == f2.fieldId }) { "group B games must be on field 2" }
+    }
+
+    @Test
+    fun `round-robin wraps fields when groups outnumber fields`() {
+        val groups = listOf("A", "B", "C").map { group(it) }
+        groups.forEachIndexed { index, g ->
+            team(g, "T${index}1")
+            team(g, "T${index}2")
+        }
+        val target = round(2)
+        val f1 = field("Court 1")
+        field("Court 2")
+
+        generate("round-robin", target.roundId)
+            .andExpect { jsonPath("$.data.gamesCreated") { value(3) } }
+
+        val byGroup = gameRepository.findAll()
+            .filter { it.round.roundId == target.roundId }
+            .groupBy { it.teamA.group.groupId }
+        // A -> field 1, B -> field 2, C wraps back to field 1.
+        assert(byGroup.size == 3)
+        assert(byGroup[groups[0].groupId]!!.all { it.field.fieldId == f1.fieldId })
+        assert(byGroup[groups[1].groupId]!!.single().field.name == "Court 2")
+        assert(byGroup[groups[2].groupId]!!.all { it.field.fieldId == f1.fieldId })
     }
 
     @Test
@@ -238,6 +267,7 @@ class GameGenerationTest : AbstractIntegrationTest() {
         }
         val r1 = round(1)
         val f = field("Court 1")
+        field("Court 2")
         val neutralRef = pairs.last().first
         for ((first, second) in pairs) {
             game(r1, f, first, second, neutralRef, 25, 10)
@@ -266,6 +296,9 @@ class GameGenerationTest : AbstractIntegrationTest() {
         assert(first.get("teamBId").asText().toInt() == d1.teamId)
         assert(second.get("teamAId").asText().toInt() == b1.teamId)
         assert(second.get("teamBId").asText().toInt() == c1.teamId)
+        // Group-synced fields follow Team A's group: A1vD1 on field 1, B1vC1 on field 2.
+        assert(first.get("fieldId").asText() == s.field.fieldId.toString())
+        assert(second.get("fieldId").asText() != s.field.fieldId.toString())
         for (game in games) {
             assert(game.get("status").asText() == "SCHEDULED")
             assert(game.get("scoreA").asInt() == 0 && game.get("scoreB").asInt() == 0)
@@ -388,7 +421,8 @@ class GameGenerationTest : AbstractIntegrationTest() {
     private data class ConsolationSetup(
         val groups: List<TournamentGroup>,
         val trailers: List<Team>,
-        val target: Round
+        val target: Round,
+        val field: Field
     )
 
     /** Four groups of three teams; X1 > X2 > X3 by round-1 points, so X3 is last. */
@@ -399,13 +433,14 @@ class GameGenerationTest : AbstractIntegrationTest() {
         }
         val r1 = round(1)
         val f = field("Court 1")
+        field("Court 2")
         val neutralRef = triples.last().first
         for ((first, second, third) in triples) {
             game(r1, f, first, second, neutralRef, 25, 10)
             game(r1, f, first, third, neutralRef, 25, 5)
             game(r1, f, second, third, neutralRef, 25, 15)
         }
-        return ConsolationSetup(groups, triples.map { it.third }, round(4))
+        return ConsolationSetup(groups, triples.map { it.third }, round(4), f)
     }
 
     @Test
@@ -426,6 +461,9 @@ class GameGenerationTest : AbstractIntegrationTest() {
         assert(games[0].get("teamBId").asText().toInt() == d4.teamId)
         assert(games[1].get("teamAId").asText().toInt() == b4.teamId)
         assert(games[1].get("teamBId").asText().toInt() == c4.teamId)
+        // Group-synced fields follow Team A's group: A4vD4 on field 1, B4vC4 on field 2.
+        assert(games[0].get("fieldId").asText() == s.field.fieldId.toString())
+        assert(games[1].get("fieldId").asText() != s.field.fieldId.toString())
         // Each selected team participates exactly once.
         val participants = games.flatMap {
             listOf(it.get("teamAId").asText().toInt(), it.get("teamBId").asText().toInt())

@@ -41,19 +41,21 @@ class GenerationConcurrencyIT : RealPortIT() {
             pool.shutdownNow()
         }
 
-        // Round-scoped assertion (other tests' groups share this database, so
-        // only this round's games are counted): without serialization every
+        // Round-scoped, pair-scoped assertions: round-robin legitimately covers
+        // every group in this shared database, so only this round's games for
+        // this test's own teams are counted. Without serialization every
         // parallel call would recreate the same 6 pairings.
         val games = dataOf(
             assertStatus(get(publicPort, "/api/games/filter/$roundId"), 200, "GET generated games"),
             "GET generated games"
         )
-        assertEquals(6, games.size(), "duplicate games were created: $games")
         val pairs = games.map {
             setOf(it.path("teamAId").asText().toInt(), it.path("teamBId").asText().toInt())
-        }.toSet()
+        }
         val expected = mutableSetOf<Set<Int>>()
         for (i in teamIds.indices) for (j in i + 1 until teamIds.size) expected += setOf(teamIds[i], teamIds[j])
-        assertEquals(expected, pairs, "exactly the 6 unique pairings must exist")
+        for (pair in expected) {
+            assertEquals(1, pairs.count { it == pair }, "pairing $pair must exist exactly once: $pairs")
+        }
     }
 }
