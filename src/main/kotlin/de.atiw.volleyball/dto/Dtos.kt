@@ -41,6 +41,12 @@ data class GameDto(
     val scoreB: Int?
 )
 
+data class LeaderboardEntryDto(
+    val teamId: String,
+    val name: String,
+    val points: Int
+)
+
 fun TournamentGroup.toDto() = GroupDto(
     groupId = groupId.toString(),
     name = designation

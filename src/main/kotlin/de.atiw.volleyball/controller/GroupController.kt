@@ -4,6 +4,7 @@ import de.atiw.volleyball.dto.ApiErrorBody
 import de.atiw.volleyball.dto.DataEnvelope
 import de.atiw.volleyball.dto.ErrorEnvelope
 import de.atiw.volleyball.dto.GroupDto
+import de.atiw.volleyball.dto.LeaderboardEntryDto
 import de.atiw.volleyball.dto.toDto
 import de.atiw.volleyball.service.GroupService
 import org.springframework.http.ResponseEntity
@@ -32,5 +33,19 @@ class GroupController(
             ?: return ResponseEntity.status(404)
                 .body(ErrorEnvelope(ApiErrorBody("RESOURCE_NOT_FOUND", "Group not found")))
         return ResponseEntity.ok(DataEnvelope(group.toDto()))
+    }
+
+    @GetMapping("/{id}/leaderboard")
+    fun getGroupLeaderboard(@PathVariable id: String): ResponseEntity<Any> {
+        val numericId = id.toIntOrNull()
+            ?: return ResponseEntity.status(404)
+                .body(ErrorEnvelope(ApiErrorBody("RESOURCE_NOT_FOUND", "Group not found")))
+        try {
+            val leaderboard: List<LeaderboardEntryDto> = groupService.getLeaderboard(numericId)
+            return ResponseEntity.ok(DataEnvelope(leaderboard))
+        } catch (ex: de.atiw.volleyball.admin.common.NotFoundException) {
+            return ResponseEntity.status(404)
+                .body(ErrorEnvelope(ApiErrorBody("RESOURCE_NOT_FOUND", "Group not found")))
+        }
     }
 }

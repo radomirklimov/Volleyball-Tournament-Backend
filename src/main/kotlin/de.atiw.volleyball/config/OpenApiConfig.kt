@@ -22,6 +22,7 @@ class OpenApiConfig {
             "/",
             "/api/groups",
             "/api/groups/*",
+            "/api/groups/*/leaderboard",
             "/api/teams",
             "/api/teams/*",
             "/api/rounds",

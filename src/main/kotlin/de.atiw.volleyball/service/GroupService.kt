@@ -24,6 +24,21 @@ class GroupService(
     fun getById(id: Int): TournamentGroup? =
         groupRepository.findById(id).orElse(null)
 
+    @Transactional(readOnly = true)
+    fun getLeaderboard(groupId: Int): List<de.atiw.volleyball.dto.LeaderboardEntryDto> {
+        if (!groupRepository.existsById(groupId)) throw NotFoundException("Group")
+        return teamRepository.findLeaderboardByGroupId(groupId).map { row ->
+            val teamId = (row[0] as Number).toInt()
+            val name = row[1] as String
+            val points = (row[2] as Number).toInt()
+            de.atiw.volleyball.dto.LeaderboardEntryDto(
+                teamId = teamId.toString(),
+                name = name,
+                points = points
+            )
+        }
+    }
+
     @Transactional
     fun create(name: String?): TournamentGroup {
         val designation = validateDesignation(name)
