@@ -49,6 +49,13 @@ data class LeaderboardEntryDto(
     val points: Int
 )
 
+data class GenerationResultDto(
+    val roundId: String,
+    val gamesCreated: Int,
+    val gamesSkipped: Int,
+    val games: List<GameDto>
+)
+
 fun TournamentGroup.toDto() = GroupDto(
     groupId = groupId.toString(),
     name = designation

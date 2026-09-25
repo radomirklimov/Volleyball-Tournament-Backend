@@ -40,6 +40,9 @@ http://localhost:8081                      ADMIN
   POST   /api/admin/rounds  PUT  /api/admin/rounds/{id}  DELETE /api/admin/rounds/{id}
   POST /api/games/{id}/start
   POST /api/games/{id}/end
+  POST /api/admin/rounds/{id}/generate-games/round-robin
+  POST /api/admin/rounds/{id}/generate-games/knockout
+  POST /api/admin/rounds/{id}/generate-games/consolation
 ```
 
 
@@ -363,6 +366,62 @@ PUT http://localhost:8081/api/admin/games/15
 ```
 
 → `200` + the updated game in the `data` envelope. Negative scores → `400`.
+
+---
+
+## 4a. Admin game generation — `http://localhost:8081`
+
+Three endpoints generate tournament games automatically. The frontend decides
+*when* to call them; the backend validates *whether* generation is possible
+and determines the participants itself — the requests carry no team IDs.
+
+```http
+POST /api/admin/rounds/{id}/generate-games/round-robin
+POST /api/admin/rounds/{id}/generate-games/knockout
+POST /api/admin/rounds/{id}/generate-games/consolation
+```
+
+All three exist **only** on port `8081` (`404` on port `8080`). `{id}` is the
+target `round_id` (missing round → `404`, non-numeric → `404`). All are
+transactional and idempotent: pairings already present in the target round
+(`A vs B` == `B vs A`) are skipped untouched, so a repeat call reports
+`gamesCreated: 0`. Every created game starts as `SCHEDULED` with `0/0` and
+emits one `GAME / CREATE` live event; skipped/failed generation emits nothing.
+
+Response (`201`):
+
+```json
+{
+  "data": {
+    "roundId": "6",
+    "gamesCreated": 6,
+    "gamesSkipped": 0,
+    "games": [
+      {
+        "gameId": "101",
+        "roundId": "6",
+        "fieldId": "1",
+        "teamAId": "1",
+        "teamBId": "2",
+        "refereeTeamId": "3",
+        "scoreA": 0,
+        "scoreB": 0,
+        "status": "SCHEDULED"
+      }
+    ]
+  }
+}
+```
+
+| Endpoint | Rule |
+|---|---|
+| `…/round-robin` | Every team plays every other team inside its own group exactly once (`n·(n−1)/2` per group). Never cross-group. |
+| `…/knockout` | First stage (no previous knockout games): top team of each group leaderboard (`round_number = 1`) qualifies; count must be a power of two (`400` otherwise). Later stages: winners of the previous knockout stage qualify — it must be fully `FINISHED` (`409` otherwise) with exactly one winner per game (draw → `400`). Deterministic bracket pairing (first vs last). |
+| `…/consolation` | Lowest team of each group leaderboard (`round_number = 1`) participates. Even count required (`400` if odd, no byes); each team plays once, never against its own group. |
+
+Shared rules: fields rotate deterministically by `field_id` (no fields → `400`);
+referee is the lowest-ID team not participating (none available → `400`, e.g.
+only two teams exist); existing games are never modified.
 
 ---
 

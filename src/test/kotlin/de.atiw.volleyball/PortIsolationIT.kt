@@ -75,6 +75,27 @@ class PortIsolationIT : RealPortIT() {
     }
 
     @Test
+    fun `generation endpoints are admin-only`() {
+        val f = newFixture("GN")
+        val paths = listOf("round-robin", "knockout", "consolation")
+        for (kind in paths) {
+            assertStatus(
+                post(publicPort, "/api/admin/rounds/${f.roundId}/generate-games/$kind"),
+                404, "POST $kind on public port"
+            )
+        }
+        // Smoke check: generation works through the admin port.
+        val res = dataOf(
+            assertStatus(
+                post(adminPort, "/api/admin/rounds/${f.roundId}/generate-games/round-robin"),
+                201, "POST round-robin on admin port"
+            ),
+            "POST round-robin on admin port"
+        )
+        assertTrue(res.path("gamesCreated").isInt, "response must carry gamesCreated: $res")
+    }
+
+    @Test
     fun `game lifecycle is admin-only`() {
         val f = newFixture("ST")
         assertStatus(post(publicPort, "/api/games/${f.freshGame}/start"), 404, "POST start on public port")
