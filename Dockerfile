@@ -20,6 +20,6 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 
-# Railway injects $PORT at runtime; Spring reads it via server.port in application.yml
-EXPOSE 8080
+# Public API (8080) + Admin API (8081); Railway injects $PORT/$ADMIN_PORT at runtime.
+EXPOSE 8080 8081
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

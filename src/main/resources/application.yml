@@ -1,3 +1,11 @@
+server:
+  # Public/student API + realtime WebSocket. Railway injects $PORT at runtime.
+  port: ${PORT:8080}
+
+app:
+  # Admin API second connector in the same application/process.
+  admin-port: ${ADMIN_PORT:8081}
+
 spring:
   datasource:
 #    url: jdbc:postgresql://db.nbxzssvjtjllfruovuvf.supabase.co:5432/postgres?sslmode=require

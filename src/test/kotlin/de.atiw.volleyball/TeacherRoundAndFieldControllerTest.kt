@@ -57,7 +57,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `createRound returns 201`() {
-        mockMvc.post("/api/teacher/rounds") {
+        mockMvc.post("/api/admin/rounds") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("number" to 6))
         }.andExpect {
@@ -68,7 +68,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `createRound rejects non-positive number`() {
-        mockMvc.post("/api/teacher/rounds") {
+        mockMvc.post("/api/admin/rounds") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("number" to 0))
         }.andExpect { status { isBadRequest() } }
@@ -78,7 +78,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `createRound rejects duplicate number`() {
         roundRepository.save(Round(roundNumber = 2))
 
-        mockMvc.post("/api/teacher/rounds") {
+        mockMvc.post("/api/admin/rounds") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("number" to 2))
         }.andExpect { status { isConflict() } }
@@ -88,7 +88,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `updateRound updates number`() {
         val round = roundRepository.save(Round(roundNumber = 3))
 
-        mockMvc.put("/api/teacher/rounds/${round.roundId}") {
+        mockMvc.put("/api/admin/rounds/${round.roundId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("number" to 7))
         }.andExpect {
@@ -101,7 +101,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `deleteRound returns 409 when games reference round`() {
         val (round, _, _) = gameSetup()
 
-        mockMvc.delete("/api/teacher/rounds/${round.roundId}")
+        mockMvc.delete("/api/admin/rounds/${round.roundId}")
             .andExpect { status { isConflict() } }
     }
 
@@ -109,13 +109,13 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `deleteRound returns 204 when unused`() {
         val round = roundRepository.save(Round(roundNumber = 9))
 
-        mockMvc.delete("/api/teacher/rounds/${round.roundId}")
+        mockMvc.delete("/api/admin/rounds/${round.roundId}")
             .andExpect { status { isNoContent() } }
     }
 
     @Test
     fun `createField returns 201`() {
-        mockMvc.post("/api/teacher/fields") {
+        mockMvc.post("/api/admin/fields") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "Court 5"))
         }.andExpect {
@@ -126,7 +126,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `createField rejects blank name`() {
-        mockMvc.post("/api/teacher/fields") {
+        mockMvc.post("/api/admin/fields") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to " "))
         }.andExpect { status { isBadRequest() } }
@@ -136,7 +136,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `createField rejects duplicate name`() {
         fieldRepository.save(Field(name = "Court 1"))
 
-        mockMvc.post("/api/teacher/fields") {
+        mockMvc.post("/api/admin/fields") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "Court 1"))
         }.andExpect { status { isConflict() } }
@@ -146,7 +146,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `updateField updates name`() {
         val field = fieldRepository.save(Field(name = "Old"))
 
-        mockMvc.put("/api/teacher/fields/${field.fieldId}") {
+        mockMvc.put("/api/admin/fields/${field.fieldId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "Court A"))
         }.andExpect {
@@ -159,7 +159,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `deleteField returns 409 when games reference field`() {
         val (_, field, _) = gameSetup()
 
-        mockMvc.delete("/api/teacher/fields/${field.fieldId}")
+        mockMvc.delete("/api/admin/fields/${field.fieldId}")
             .andExpect { status { isConflict() } }
     }
 
@@ -167,7 +167,7 @@ class TeacherRoundAndFieldControllerTest : AbstractIntegrationTest() {
     fun `deleteField returns 204 when unused`() {
         val field = fieldRepository.save(Field(name = "Alone"))
 
-        mockMvc.delete("/api/teacher/fields/${field.fieldId}")
+        mockMvc.delete("/api/admin/fields/${field.fieldId}")
             .andExpect { status { isNoContent() } }
     }
 }

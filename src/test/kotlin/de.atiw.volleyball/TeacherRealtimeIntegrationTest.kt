@@ -141,7 +141,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
         val c = Collector()
         val session = connect(c)
 
-        mockMvc.put("/api/teacher/games/${s.gameId}") {
+        mockMvc.put("/api/admin/games/${s.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, 18, 21))
         }.andExpect { status { isOk() } }
@@ -161,7 +161,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
         val c = Collector()
         val session = connect(c)
 
-        val createResult = mockMvc.post("/api/teacher/games") {
+        val createResult = mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, 5, 7))
         }.andExpect { status { isCreated() } }.andReturn()
@@ -172,7 +172,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
         assertEquals("CREATE", created.get("operation").asText())
         assertEquals(createdId, created.get("entityId").asInt())
 
-        mockMvc.delete("/api/teacher/games/$createdId")
+        mockMvc.delete("/api/admin/games/$createdId")
             .andExpect { status { isNoContent() } }
 
         val deleted = nextEvent(c)
@@ -187,7 +187,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
         val c = Collector()
         val session = connect(c)
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s).toMutableMap().apply { put("scoreA", -1) })
         }.andExpect { status { isBadRequest() } }
@@ -206,7 +206,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
         val sessionA = connect(a)
         val sessionB = connect(b)
 
-        mockMvc.put("/api/teacher/games/${s.gameId}") {
+        mockMvc.put("/api/admin/games/${s.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, 10, 12))
         }.andExpect { status { isOk() } }
@@ -218,7 +218,7 @@ class TeacherRealtimeIntegrationTest : AbstractIntegrationTest() {
 
         sessionA.close()
 
-        mockMvc.put("/api/teacher/games/${s.gameId}") {
+        mockMvc.put("/api/admin/games/${s.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, 11, 12))
         }.andExpect { status { isOk() } }

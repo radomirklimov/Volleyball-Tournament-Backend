@@ -79,7 +79,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame returns 201`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s))
         }.andExpect {
@@ -92,7 +92,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame rejects missing round`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("roundId" to 999999)))
         }.andExpect { status { isBadRequest() } }
@@ -102,7 +102,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame rejects negative score`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to -1)))
         }.andExpect { status { isBadRequest() } }
@@ -112,7 +112,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame accepts null scores`() {
         val s = setup()
 
-        val result = mockMvc.post("/api/teacher/games") {
+        val result = mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
         }.andExpect { status { isCreated() } }.andReturn()
@@ -132,7 +132,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
         val ref = teamRepository.findById(s.refereeId).orElseThrow()
         val game = gameRepository.save(Game(round = round, field = field, teamA = teamA, teamB = teamB, refereeTeam = ref, pointsA = 25, pointsB = 21))
 
-        val result = mockMvc.put("/api/teacher/games/${game.gameId}") {
+        val result = mockMvc.put("/api/admin/games/${game.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
         }.andExpect { status { isOk() } }.andReturn()
@@ -146,7 +146,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame rejects same team for A and B`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("teamBId" to s.teamAId)))
         }.andExpect { status { isBadRequest() } }
@@ -156,7 +156,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame rejects referee equal to team A`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("refereeTeamId" to s.teamAId)))
         }.andExpect { status { isBadRequest() } }
@@ -166,7 +166,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `createGame rejects referee equal to team B`() {
         val s = setup()
 
-        mockMvc.post("/api/teacher/games") {
+        mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("refereeTeamId" to s.teamBId)))
         }.andExpect { status { isBadRequest() } }
@@ -193,7 +193,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
             "scoreB" to 21
         )
 
-        mockMvc.put("/api/teacher/games/${game.gameId}") {
+        mockMvc.put("/api/admin/games/${game.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect {
@@ -207,7 +207,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     fun `updateGame returns 404 when missing`() {
         val s = setup()
 
-        mockMvc.put("/api/teacher/games/999999") {
+        mockMvc.put("/api/admin/games/999999") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s))
         }.andExpect { status { isNotFound() } }
@@ -223,13 +223,13 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
         val ref = teamRepository.findById(s.refereeId).orElseThrow()
         val game = gameRepository.save(Game(round = round, field = field, teamA = teamA, teamB = teamB, refereeTeam = ref))
 
-        mockMvc.delete("/api/teacher/games/${game.gameId}")
+        mockMvc.delete("/api/admin/games/${game.gameId}")
             .andExpect { status { isNoContent() } }
     }
 
     @Test
     fun `deleteGame returns 404 when missing`() {
-        mockMvc.delete("/api/teacher/games/999999")
+        mockMvc.delete("/api/admin/games/999999")
             .andExpect { status { isNotFound() } }
     }
 }

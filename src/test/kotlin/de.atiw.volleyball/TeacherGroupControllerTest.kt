@@ -33,7 +33,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `createGroup returns 201 and created group`() {
-        mockMvc.post("/api/teacher/groups") {
+        mockMvc.post("/api/admin/groups") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "A"))
         }.andExpect {
@@ -44,7 +44,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `createGroup rejects blank name`() {
-        mockMvc.post("/api/teacher/groups") {
+        mockMvc.post("/api/admin/groups") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "  "))
         }.andExpect { status { isBadRequest() } }
@@ -54,7 +54,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
     fun `createGroup rejects duplicate name with 409`() {
         groupRepository.save(TournamentGroup(designation = "A"))
 
-        mockMvc.post("/api/teacher/groups") {
+        mockMvc.post("/api/admin/groups") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "A"))
         }.andExpect { status { isConflict() } }
@@ -62,7 +62,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
 
     @Test
     fun `updateGroup returns 404 when group does not exist`() {
-        mockMvc.put("/api/teacher/groups/999999") {
+        mockMvc.put("/api/admin/groups/999999") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "B"))
         }.andExpect { status { isNotFound() } }
@@ -72,7 +72,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
     fun `updateGroup returns 200 and updated group`() {
         val group = groupRepository.save(TournamentGroup(designation = "A"))
 
-        mockMvc.put("/api/teacher/groups/${group.groupId}") {
+        mockMvc.put("/api/admin/groups/${group.groupId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "B"))
         }.andExpect {
@@ -86,7 +86,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
         groupRepository.save(TournamentGroup(designation = "A"))
         val b = groupRepository.save(TournamentGroup(designation = "B"))
 
-        mockMvc.put("/api/teacher/groups/${b.groupId}") {
+        mockMvc.put("/api/admin/groups/${b.groupId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "A"))
         }.andExpect { status { isConflict() } }
@@ -96,7 +96,7 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
     fun `deleteGroup returns 204 when unused`() {
         val group = groupRepository.save(TournamentGroup(designation = "Z"))
 
-        mockMvc.delete("/api/teacher/groups/${group.groupId}")
+        mockMvc.delete("/api/admin/groups/${group.groupId}")
             .andExpect { status { isNoContent() } }
     }
 
@@ -111,19 +111,19 @@ class TeacherGroupControllerTest : AbstractIntegrationTest() {
             )
         )
 
-        mockMvc.delete("/api/teacher/groups/${group.groupId}")
+        mockMvc.delete("/api/admin/groups/${group.groupId}")
             .andExpect { status { isConflict() } }
     }
 
     @Test
     fun `deleteGroup returns 404 when missing`() {
-        mockMvc.delete("/api/teacher/groups/999999")
+        mockMvc.delete("/api/admin/groups/999999")
             .andExpect { status { isNotFound() } }
     }
 
     @Test
     fun `public GET still works after teacher write`() {
-        mockMvc.post("/api/teacher/groups") {
+        mockMvc.post("/api/admin/groups") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(mapOf("name" to "C"))
         }.andExpect { status { isCreated() } }

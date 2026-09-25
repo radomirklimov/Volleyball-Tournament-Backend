@@ -1,10 +1,10 @@
-package de.atiw.volleyball.teacher
+package de.atiw.volleyball.admin
 
 import de.atiw.volleyball.dto.DataEnvelope
 import de.atiw.volleyball.dto.FieldDto
 import de.atiw.volleyball.dto.toDto
 import de.atiw.volleyball.service.FieldService
-import de.atiw.volleyball.teacher.common.NotFoundException
+import de.atiw.volleyball.admin.common.NotFoundException
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 
 @RestController
-@RequestMapping("/api/teacher/fields")
-class TeacherFieldController(
+@RequestMapping("/api/admin/fields")
+class AdminFieldController(
     private val fieldService: FieldService
 ) {
     @PostMapping

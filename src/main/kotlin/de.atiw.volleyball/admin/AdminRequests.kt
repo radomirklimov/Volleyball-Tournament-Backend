@@ -1,4 +1,4 @@
-package de.atiw.volleyball.teacher
+package de.atiw.volleyball.admin
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonProperty

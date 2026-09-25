@@ -1,10 +1,10 @@
-package de.atiw.volleyball.teacher
+package de.atiw.volleyball.admin
 
 import de.atiw.volleyball.dto.DataEnvelope
 import de.atiw.volleyball.dto.RoundDto
 import de.atiw.volleyball.dto.toDto
 import de.atiw.volleyball.service.RoundService
-import de.atiw.volleyball.teacher.common.NotFoundException
+import de.atiw.volleyball.admin.common.NotFoundException
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 
 @RestController
-@RequestMapping("/api/teacher/rounds")
-class TeacherRoundController(
+@RequestMapping("/api/admin/rounds")
+class AdminRoundController(
     private val roundService: RoundService
 ) {
     @PostMapping

@@ -1,4 +1,4 @@
-package de.atiw.volleyball.teacher.common
+package de.atiw.volleyball.admin.common
 
 import org.springframework.http.HttpStatus
 

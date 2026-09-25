@@ -53,7 +53,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val g = group()
         val body = mapOf("groupId" to g.groupId, "class" to "U18 Boys", "name" to "New School")
 
-        mockMvc.post("/api/teacher/teams") {
+        mockMvc.post("/api/admin/teams") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect {
@@ -66,7 +66,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
     fun `createTeam rejects missing group`() {
         val body = mapOf("groupId" to 999999, "class" to "U18", "name" to "X")
 
-        mockMvc.post("/api/teacher/teams") {
+        mockMvc.post("/api/admin/teams") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect { status { isBadRequest() } }
@@ -77,7 +77,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val g = group()
         val body = mapOf("groupId" to g.groupId, "class" to " ", "name" to "X")
 
-        mockMvc.post("/api/teacher/teams") {
+        mockMvc.post("/api/admin/teams") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect { status { isBadRequest() } }
@@ -88,7 +88,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val g = group()
         val body = mapOf("groupId" to g.groupId, "class" to "U18", "name" to "")
 
-        mockMvc.post("/api/teacher/teams") {
+        mockMvc.post("/api/admin/teams") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect { status { isBadRequest() } }
@@ -102,7 +102,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
 
         val body = mapOf("groupId" to g2.groupId, "class" to "U20", "name" to "New")
 
-        mockMvc.put("/api/teacher/teams/${team.teamId}") {
+        mockMvc.put("/api/admin/teams/${team.teamId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect {
@@ -116,7 +116,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val g = group()
         val body = mapOf("groupId" to g.groupId, "class" to "U18", "name" to "X")
 
-        mockMvc.put("/api/teacher/teams/999999") {
+        mockMvc.put("/api/admin/teams/999999") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(body)
         }.andExpect { status { isNotFound() } }
@@ -132,7 +132,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val field = fieldRepository.save(Field(name = "Court 1"))
         gameRepository.save(Game(round = round, field = field, teamA = t1, teamB = t2, refereeTeam = t3))
 
-        mockMvc.delete("/api/teacher/teams/${t1.teamId}")
+        mockMvc.delete("/api/admin/teams/${t1.teamId}")
             .andExpect { status { isConflict() } }
     }
 
@@ -141,7 +141,7 @@ class TeacherTeamControllerTest : AbstractIntegrationTest() {
         val g = group()
         val team = teamRepository.save(Team(group = g, teamClass = "C", name = "Solo"))
 
-        mockMvc.delete("/api/teacher/teams/${team.teamId}")
+        mockMvc.delete("/api/admin/teams/${team.teamId}")
             .andExpect { status { isNoContent() } }
     }
 }

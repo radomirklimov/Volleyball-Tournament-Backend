@@ -1,17 +1,17 @@
-package de.atiw.volleyball.teacher
+package de.atiw.volleyball.admin
 
 import de.atiw.volleyball.dto.DataEnvelope
 import de.atiw.volleyball.dto.GameDto
 import de.atiw.volleyball.dto.toDto
 import de.atiw.volleyball.service.GameService
-import de.atiw.volleyball.teacher.common.BadRequestException
+import de.atiw.volleyball.admin.common.BadRequestException
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * Button-action scoring for teachers. No request bodies — the endpoint fully
+ * Button-action scoring for admins. No request bodies — the endpoint fully
  * describes the action. Every state-changing call publishes a realtime event
  * after commit via [GameService].
  */

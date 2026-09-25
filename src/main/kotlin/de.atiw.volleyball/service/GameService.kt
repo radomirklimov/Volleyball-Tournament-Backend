@@ -8,9 +8,9 @@ import de.atiw.volleyball.repository.FieldRepository
 import de.atiw.volleyball.repository.GameRepository
 import de.atiw.volleyball.repository.RoundRepository
 import de.atiw.volleyball.repository.TeamRepository
-import de.atiw.volleyball.teacher.common.BadRequestException
-import de.atiw.volleyball.teacher.common.ConflictException
-import de.atiw.volleyball.teacher.common.NotFoundException
+import de.atiw.volleyball.admin.common.BadRequestException
+import de.atiw.volleyball.admin.common.ConflictException
+import de.atiw.volleyball.admin.common.NotFoundException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
