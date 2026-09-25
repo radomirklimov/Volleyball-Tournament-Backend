@@ -87,8 +87,19 @@ class PortIsolationIT : RealPortIT() {
     }
 
     @Test
+    fun `root redirects to swagger UI on both ports`() {
+        for (port in listOf(publicPort, adminPort)) {
+            val res = get(port, "/")
+            assertEquals(302, res.statusCode(), "GET / on port $port -> ${res.body()}")
+            assertTrue(
+                (res.headers().firstValue("location").orElse("")).contains("swagger-ui"),
+                "GET / location on port $port: ${res.headers().firstValue("location")}"
+            )
+        }
+    }
+
+    @Test
     fun `admin port rejects public read API`() {
-        assertStatus(get(adminPort, "/"), 404, "GET /")
         assertStatus(get(adminPort, "/api/groups"), 404, "GET groups")
         assertStatus(get(adminPort, "/api/groups/1"), 404, "GET group by id")
         assertStatus(get(adminPort, "/api/groups/1/leaderboard"), 404, "GET group leaderboard")

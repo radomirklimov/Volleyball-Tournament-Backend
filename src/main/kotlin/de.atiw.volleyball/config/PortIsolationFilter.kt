@@ -18,6 +18,9 @@ import org.springframework.web.filter.OncePerRequestFilter
  *   `POST /api/games/{id}/start` endpoint). Public read routes and
  *   the public WebSocket handshake get `404`.
  *
+ * `GET /` (redirect to the Swagger UI) is allowed on both ports: each port
+ * serves its own API docs, so the landing page must work everywhere.
+ *
  * Requests arriving on an unknown port (e.g. MockMvc tests, which use a
  * synthetic local port) are passed through so existing MockMvc-based tests
  * keep working; real port isolation is covered by dedicated integration
@@ -67,7 +70,8 @@ class PortIsolationFilter(
     private fun isPublicRoute(method: String, path: String): Boolean {
         if (path == "/ws/live" || path.startsWith("/ws/live/")) return true
         if (method == "GET") {
-            if (path == "/") return true
+            // NB: "/" is intentionally NOT listed here — the Swagger UI
+            // redirect (RootController) must work on both ports.
             if (path == "/api/groups" || path.startsWith("/api/groups/")) return true
             if (path == "/api/teams" || path.startsWith("/api/teams/")) return true
             if (path == "/api/rounds" || path.startsWith("/api/rounds/")) return true

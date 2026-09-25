@@ -96,7 +96,8 @@ CRUD, `GET` the game first, change the score, and `PUT` the whole object back.
 
 ### Root
 
-`GET /` — in a browser, redirects to the Swagger UI. Not used by frontend code.
+`GET /` — in a browser, redirects to the Swagger UI (works on both ports;
+each port shows its own endpoints). Not used by frontend code.
 
 ### Groups
 
