@@ -40,7 +40,8 @@ class OpenApiConfig {
         .group("admin")
         .pathsToMatch(
             "/api/admin/**",
-            "/api/games/*/start"
+            "/api/games/*/start",
+            "/api/games/*/end"
         )
         .build()
 }

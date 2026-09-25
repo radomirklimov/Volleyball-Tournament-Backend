@@ -32,7 +32,7 @@ class PortIsolationFilter(
     private val ports: PortRegistry
 ) : OncePerRequestFilter() {
 
-    private val scoringPath = Regex("^/api/games/[^/]+/start$")
+    private val scoringPath = Regex("^/api/games/[^/]+/(start|end)$")
 
     override fun doFilterInternal(
         request: HttpServletRequest,

@@ -85,6 +85,7 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
         }.andExpect {
             status { isCreated() }
             jsonPath("$.data.scoreA") { value(0) }
+            jsonPath("$.data.status") { value("SCHEDULED") }
         }
     }
 
@@ -210,7 +211,43 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
             status { isOk() }
             jsonPath("$.data.scoreA") { value(18) }
             jsonPath("$.data.scoreB") { value(21) }
+            jsonPath("$.data.status") { value("SCHEDULED") }
         }
+    }
+
+    @Test
+    fun `updateGame keeps lifecycle status and rejects status field`() {
+        val s = setup()
+        val round = roundRepository.findById(s.roundId).orElseThrow()
+        val field = fieldRepository.findById(s.fieldId).orElseThrow()
+        val teamA = teamRepository.findById(s.teamAId).orElseThrow()
+        val teamB = teamRepository.findById(s.teamBId).orElseThrow()
+        val ref = teamRepository.findById(s.refereeId).orElseThrow()
+        val game = gameRepository.save(
+            Game(
+                round = round, field = field, teamA = teamA, teamB = teamB, refereeTeam = ref,
+                pointsA = 5, pointsB = 3, status = de.atiw.volleyball.entity.GameStatus.RUNNING
+            )
+        )
+
+        // A normal update preserves the lifecycle status.
+        mockMvc.put("/api/admin/games/${game.gameId}") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to 6, "scoreB" to 3)))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.data.scoreA") { value(6) }
+            jsonPath("$.data.status") { value("RUNNING") }
+        }
+
+        // Smuggling "status" into the update body is rejected.
+        mockMvc.put("/api/admin/games/${game.gameId}") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to 6, "scoreB" to 3, "status" to "FINISHED")))
+        }.andExpect { status { isBadRequest() } }
+
+        val reloaded = gameRepository.findById(game.gameId).orElseThrow()
+        assert(reloaded.status == de.atiw.volleyball.entity.GameStatus.RUNNING)
     }
 
     @Test

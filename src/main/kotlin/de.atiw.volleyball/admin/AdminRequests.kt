@@ -24,6 +24,8 @@ data class UpdateRoundRequest(val number: Int?)
 data class CreateFieldRequest(val name: String?)
 data class UpdateFieldRequest(val name: String?)
 
+// NB: no "status" property on purpose. AdminGameController rejects a
+// "status" key explicitly with 400: every new game starts as SCHEDULED.
 data class CreateGameRequest(
     val roundId: Int?,
     val fieldId: Int?,
@@ -36,6 +38,9 @@ data class CreateGameRequest(
     val scoreB: Int? = 0
 )
 
+// NB: no "status" property on purpose. AdminGameController rejects a
+// "status" key explicitly with 400: the lifecycle is controlled exclusively
+// by POST .../start and .../end, never by generic CRUD.
 data class UpdateGameRequest(
     val roundId: Int?,
     val fieldId: Int?,

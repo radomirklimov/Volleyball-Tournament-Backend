@@ -39,6 +39,7 @@ http://localhost:8081                      ADMIN
   POST   /api/admin/fields  PUT  /api/admin/fields/{id}  DELETE /api/admin/fields/{id}
   POST   /api/admin/rounds  PUT  /api/admin/rounds/{id}  DELETE /api/admin/rounds/{id}
   POST /api/games/{id}/start
+  POST /api/games/{id}/end
 ```
 
 
@@ -151,11 +152,15 @@ Missing or non-numeric ID → `404`.
       "teamBId": "2",
       "refereeTeamId": "3",
       "scoreA": 25,
-      "scoreB": 21
+      "scoreB": 21,
+      "status": "FINISHED"
     }
   ]
 }
 ```
+
+`status` is one of `SCHEDULED` (planned), `RUNNING` (being played),
+`FINISHED` (ended).
 
 `GET /api/games/{id}` → `200`, missing/non-numeric → `404`.
 
@@ -273,40 +278,51 @@ Rules (all violations → `400`):
 - `teamAId` and `teamBId` must be different teams.
 - `refereeTeamId` must differ from both `teamAId` and `teamBId`.
 
-→ `201` + created game.
+→ `201` + created game. Every new game starts with `"status": "SCHEDULED"`,
+assigned by the backend (do not send `status` in the request).
 
 Update — `PUT /api/admin/games/{id}` (incl. score updates): send the full
 object; for a score change just resend everything with the new scores. Same
-validation as create. Missing game → `404`. → `200`.
+validation as create. The lifecycle `status` cannot be changed here (sending
+`status` → `400`); use the start/end endpoints in §4. Missing game → `404`.
+→ `200`.
 
 Delete — `DELETE /api/admin/games/{id}`: missing game → `404`, otherwise → `204`.
 
 ---
 
-## 4. Admin game scoring — `http://localhost:8081`
+## 4. Admin game lifecycle — `http://localhost:8081`
 
-Scores are changed exclusively through the admin game CRUD API: send the
-complete game object with the new scores via
-`PUT /api/admin/games/{id}` (see §3). There are no dedicated
-increment/decrement endpoints.
+Games move through `SCHEDULED → RUNNING → FINISHED`. Scores are changed
+exclusively through the admin game CRUD API: send the complete game object
+with the new scores via `PUT /api/admin/games/{id}` (see §3).
 
-The remaining button-style endpoint lives under `/api/games/…`
-(not `/api/admin/…`) but is reachable **only** on port `8081`:
+Two button-style endpoints control the lifecycle. They live under
+`/api/games/…` (not `/api/admin/…`) but are reachable **only** on port
+`8081`. Both are empty `POST`s with no request body and return `200` + the
+updated game in the `data` envelope. Neither modifies the scores:
 
 ```http
 POST /api/games/{id}/start
+POST /api/games/{id}/end
 ```
 
-It returns `200` + the game in the `data` envelope. It never modifies the
-game: scores are always non-null integers, so the game is returned unchanged
-and no live event is sent.
+| Endpoint | Effect |
+|---|---|
+| `…/start` | `SCHEDULED → RUNNING`. Already `RUNNING`/`FINISHED` → `409`, nothing changes. |
+| `…/end` | `RUNNING → FINISHED`. Still `SCHEDULED` or already `FINISHED` → `409`, nothing changes. |
+
+There are no reverse transitions and no reset/reopen endpoint.
 
 Error cases:
 
 - Non-numeric `{id}` → `400`.
 - Missing game → `404`.
+- `409` responses carry a message, e.g. `"Game 15 is already running."` or
+  `"Game 15 cannot be finished because it is still scheduled."` — show it to
+  the admin user.
 
-Example:
+Example — starting a scheduled game:
 
 ```http
 POST http://localhost:8081/api/games/15/start
@@ -322,7 +338,8 @@ POST http://localhost:8081/api/games/15/start
     "teamBId": "4",
     "refereeTeamId": "5",
     "scoreA": 0,
-    "scoreB": 0
+    "scoreB": 0,
+    "status": "RUNNING"
   }
 }
 ```
@@ -393,7 +410,11 @@ Frontend handling rule:
 
 **Starting a match (admin):**
 
-1. `POST http://localhost:8081/api/games/{id}/start` → `200`, returns the game unchanged.
+1. `POST http://localhost:8081/api/games/{id}/start` → `200`, status is now `RUNNING`, scores unchanged.
+
+**Ending a match (admin):**
+
+1. `POST http://localhost:8081/api/games/{id}/end` → `200`, status is now `FINISHED`, scores unchanged.
 
 **Adding a new team (admin):**
 

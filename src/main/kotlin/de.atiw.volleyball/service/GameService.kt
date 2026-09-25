@@ -9,7 +9,9 @@ import de.atiw.volleyball.repository.GameRepository
 import de.atiw.volleyball.repository.RoundRepository
 import de.atiw.volleyball.repository.TeamRepository
 import de.atiw.volleyball.admin.common.BadRequestException
+import de.atiw.volleyball.admin.common.ConflictException
 import de.atiw.volleyball.admin.common.NotFoundException
+import de.atiw.volleyball.entity.GameStatus
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -49,7 +51,8 @@ class GameService(
                 teamB = resolved.teamB,
                 refereeTeam = resolved.referee,
                 pointsA = resolved.pointsA,
-                pointsB = resolved.pointsB
+                pointsB = resolved.pointsB,
+                status = GameStatus.SCHEDULED
             )
         )
         events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.CREATE, saved.gameId))
@@ -89,13 +92,40 @@ class GameService(
     }
 
     /**
-     * Idempotent start action. Scores are always non-null integers, so a game
-     * already exists in its final started state: this never changes anything
-     * and therefore publishes no realtime event.
+     * Lifecycle transition `SCHEDULED -> RUNNING`. Scores are untouched.
+     * Any other current status is rejected with `409 CONFLICT` and the game
+     * is left unchanged. Publishes one `GAME / UPDATE` event after commit.
      */
-    @Transactional(readOnly = true)
-    fun startGame(id: Int): Game =
-        gameRepository.findById(id).orElse(null) ?: throw NotFoundException("Game")
+    @Transactional
+    fun startGame(id: Int): Game {
+        val game = gameRepository.findById(id).orElse(null) ?: throw NotFoundException("Game")
+        when (game.status) {
+            GameStatus.SCHEDULED -> game.status = GameStatus.RUNNING
+            GameStatus.RUNNING -> throw ConflictException("Game $id is already running.")
+            GameStatus.FINISHED -> throw ConflictException("Game $id is already finished and cannot be restarted.")
+        }
+        val saved = gameRepository.save(game)
+        events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
+        return saved
+    }
+
+    /**
+     * Lifecycle transition `RUNNING -> FINISHED`. Scores are untouched.
+     * Any other current status is rejected with `409 CONFLICT` and the game
+     * is left unchanged. Publishes one `GAME / UPDATE` event after commit.
+     */
+    @Transactional
+    fun endGame(id: Int): Game {
+        val game = gameRepository.findById(id).orElse(null) ?: throw NotFoundException("Game")
+        when (game.status) {
+            GameStatus.RUNNING -> game.status = GameStatus.FINISHED
+            GameStatus.SCHEDULED -> throw ConflictException("Game $id cannot be finished because it is still scheduled.")
+            GameStatus.FINISHED -> throw ConflictException("Game $id is already finished.")
+        }
+        val saved = gameRepository.save(game)
+        events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
+        return saved
+    }
 
     private data class ResolvedGameState(
         val round: de.atiw.volleyball.entity.Round,

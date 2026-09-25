@@ -33,21 +33,78 @@ class RealtimeIT : RealPortIT() {
     }
 
     @Test
-    fun `start emits no event because nothing changes`() {
+    fun `start emits one game update event`() {
         val f = newFixture("ES")
         val collector = Collector()
         val session = connectWs(publicPort, collector)
         try {
             assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start")
-            assertStatus(post(adminPort, "/api/games/${f.playedGame}/start"), 200, "POST start on played game")
+            assertLiveEvent(awaitEvent(collector, "start"), "GAME", "UPDATE", f.freshGame)
             assertNoEvent(collector, "start")
             // Scores are untouched by start.
             val game = dataOf(
-                assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game"),
+                assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET game"),
                 "GET game"
             )
-            assertEquals(5, game.path("scoreA").asInt())
-            assertEquals(3, game.path("scoreB").asInt())
+            assertEquals(0, game.path("scoreA").asInt())
+            assertEquals(0, game.path("scoreB").asInt())
+            assertEquals("RUNNING", game.path("status").asText())
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun `end emits one game update event`() {
+        val f = newFixture("EE")
+        val collector = Collector()
+        val session = connectWs(publicPort, collector)
+        try {
+            assertStatus(post(adminPort, "/api/games/${f.playedGame}/start"), 200, "POST start")
+            assertLiveEvent(awaitEvent(collector, "start"), "GAME", "UPDATE", f.playedGame)
+
+            assertStatus(post(adminPort, "/api/games/${f.playedGame}/end"), 200, "POST end")
+            assertLiveEvent(awaitEvent(collector, "end"), "GAME", "UPDATE", f.playedGame)
+
+            assertNoEvent(collector, "lifecycle")
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun `invalid lifecycle transitions emit no event`() {
+        val f = newFixture("EL")
+        val collector = Collector()
+        val session = connectWs(publicPort, collector)
+        try {
+            // SCHEDULED -> end.
+            assertError(
+                post(adminPort, "/api/games/${f.freshGame}/end"),
+                409, "CONFLICT", "POST end on SCHEDULED game"
+            )
+            // Move to FINISHED, then try both again.
+            assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start")
+            awaitEvent(collector, "start")
+            assertError(
+                post(adminPort, "/api/games/${f.freshGame}/start"),
+                409, "CONFLICT", "POST start on RUNNING game"
+            )
+            assertStatus(post(adminPort, "/api/games/${f.freshGame}/end"), 200, "POST end")
+            awaitEvent(collector, "end")
+            assertError(
+                post(adminPort, "/api/games/${f.freshGame}/start"),
+                409, "CONFLICT", "POST start on FINISHED game"
+            )
+            assertError(
+                post(adminPort, "/api/games/${f.freshGame}/end"),
+                409, "CONFLICT", "POST end on FINISHED game"
+            )
+            // Lifecycle on a missing game.
+            assertError(post(adminPort, "/api/games/999999999/start"), 404, "RESOURCE_NOT_FOUND", "POST start missing game")
+            assertError(post(adminPort, "/api/games/999999999/end"), 404, "RESOURCE_NOT_FOUND", "POST end missing game")
+
+            assertNoEvent(collector, "invalid transitions")
         } finally {
             session.close()
         }

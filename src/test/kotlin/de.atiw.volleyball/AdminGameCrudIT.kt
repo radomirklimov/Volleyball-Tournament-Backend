@@ -17,7 +17,7 @@ class AdminGameCrudIT : RealPortIT() {
         """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":$scoreA,"scoreB":$scoreB}"""
 
     @Test
-    fun `create game with zero scores returns 201`() {
+    fun `create game with zero scores returns 201 and status SCHEDULED`() {
         val f = refs("CN")
         val res = assertStatus(post(adminPort, "/api/admin/games", gameJson(f, "0", "0")), 201, "POST games")
         val data = dataOf(res, "POST games")
@@ -29,6 +29,7 @@ class AdminGameCrudIT : RealPortIT() {
         assertEquals(f.referee, data.path("refereeTeamId").asText())
         assertEquals(0, data.path("scoreA").asInt())
         assertEquals(0, data.path("scoreB").asInt())
+        assertEquals("SCHEDULED", data.path("status").asText(), "new games must be SCHEDULED: $data")
         // And readable through the public API with numeric scores.
         val viaPublic = dataOf(
             assertStatus(get(publicPort, "/api/games/${data.path("gameId").asText()}"), 200, "GET game"),
@@ -216,6 +217,22 @@ class AdminGameCrudIT : RealPortIT() {
         )
         assertEquals(5, game.path("scoreA").asInt(), "failed update must not modify state: $game")
         assertEquals(3, game.path("scoreB").asInt(), "failed update must not modify state: $game")
+    }
+
+    @Test
+    fun `update game cannot change status through CRUD`() {
+        val f = refs("US")
+        val body = gameJson(f, "6", "3").replace("}", """, "status":"FINISHED"}""")
+        assertError(
+            put(adminPort, "/api/admin/games/${f.playedGame}", body),
+            400, "BAD_REQUEST", "PUT game with status field"
+        )
+        val game = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game"),
+            "GET game"
+        )
+        assertEquals("SCHEDULED", game.path("status").asText(), "status must be unchanged: $game")
+        assertEquals(5, game.path("scoreA").asInt(), "failed update must not modify state: $game")
     }
 
     @Test

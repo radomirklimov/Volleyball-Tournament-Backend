@@ -75,15 +75,20 @@ class PortIsolationIT : RealPortIT() {
     }
 
     @Test
-    fun `game start is admin-only`() {
+    fun `game lifecycle is admin-only`() {
         val f = newFixture("ST")
         assertStatus(post(publicPort, "/api/games/${f.freshGame}/start"), 404, "POST start on public port")
+        assertStatus(post(publicPort, "/api/games/${f.freshGame}/end"), 404, "POST end on public port")
         val data = dataOf(
             assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start on admin port"),
             "POST start on admin port"
         )
-        assertEquals(0, data.path("scoreA").asInt())
-        assertEquals(0, data.path("scoreB").asInt())
+        assertEquals("RUNNING", data.path("status").asText())
+        val finished = dataOf(
+            assertStatus(post(adminPort, "/api/games/${f.freshGame}/end"), 200, "POST end on admin port"),
+            "POST end on admin port"
+        )
+        assertEquals("FINISHED", finished.path("status").asText())
     }
 
     @Test

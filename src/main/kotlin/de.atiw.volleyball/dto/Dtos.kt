@@ -3,6 +3,7 @@ package de.atiw.volleyball.dto
 import com.fasterxml.jackson.annotation.JsonProperty
 import de.atiw.volleyball.entity.Field
 import de.atiw.volleyball.entity.Game
+import de.atiw.volleyball.entity.GameStatus
 import de.atiw.volleyball.entity.Round
 import de.atiw.volleyball.entity.Team
 import de.atiw.volleyball.entity.TournamentGroup
@@ -38,7 +39,8 @@ data class GameDto(
     val teamBId: String,
     val refereeTeamId: String,
     val scoreA: Int,
-    val scoreB: Int
+    val scoreB: Int,
+    val status: GameStatus
 )
 
 data class LeaderboardEntryDto(
@@ -77,5 +79,6 @@ fun Game.toDto() = GameDto(
     teamBId = teamB.teamId.toString(),
     refereeTeamId = refereeTeam.teamId.toString(),
     scoreA = pointsA,
-    scoreB = pointsB
+    scoreB = pointsB,
+    status = status
 )

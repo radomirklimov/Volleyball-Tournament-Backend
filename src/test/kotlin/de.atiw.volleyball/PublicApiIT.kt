@@ -126,6 +126,34 @@ class PublicApiIT : RealPortIT() {
         assertEquals(f.teamA, game.path("teamAId").asText())
         assertEquals(f.teamB, game.path("teamBId").asText())
         assertEquals(f.referee, game.path("refereeTeamId").asText())
+        assertTrue(game.path("status").isTextual(), "status must be a string: $game")
+    }
+
+    @Test
+    fun `public game endpoints expose the lifecycle status`() {
+        val f = newFixture("LS")
+        val fresh = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET SCHEDULED game"),
+            "GET SCHEDULED game"
+        )
+        assertEquals("SCHEDULED", fresh.path("status").asText())
+
+        assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start")
+        val running = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET RUNNING game"),
+            "GET RUNNING game"
+        )
+        assertEquals("RUNNING", running.path("status").asText())
+
+        assertStatus(post(adminPort, "/api/games/${f.freshGame}/end"), 200, "POST end")
+        val finished = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET FINISHED game"),
+            "GET FINISHED game"
+        )
+        assertEquals("FINISHED", finished.path("status").asText())
+
+        val list = dataOf(assertStatus(get(publicPort, "/api/games"), 200, "GET games"), "GET games")
+        assertTrue(list.isArray && list.all { it.path("status").isTextual() }, "every game must expose status: $list")
     }
 
     @Test
