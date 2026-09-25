@@ -30,8 +30,10 @@ data class CreateGameRequest(
     val teamAId: Int?,
     val teamBId: Int?,
     val refereeTeamId: Int?,
-    val scoreA: Int?,
-    val scoreB: Int?
+    // Scores are always non-null integers. Omitted scores default to 0;
+    // an explicit null is rejected with 400 by service validation.
+    val scoreA: Int? = 0,
+    val scoreB: Int? = 0
 )
 
 data class UpdateGameRequest(
@@ -40,6 +42,7 @@ data class UpdateGameRequest(
     val teamAId: Int?,
     val teamBId: Int?,
     val refereeTeamId: Int?,
-    val scoreA: Int?,
-    val scoreB: Int?
+    // Null scores are rejected with 400; there is no "clear to NULL".
+    val scoreA: Int? = 0,
+    val scoreB: Int? = 0
 )

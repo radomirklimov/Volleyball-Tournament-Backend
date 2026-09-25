@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Admin game CRUD contract on port 8081 (real HTTP): creation with nullable
+ * Admin game CRUD contract on port 8081 (real HTTP): creation with non-null
  * scores, reference/team-combination validation, full-replacement updates and
  * deletes — all with `data`/`error` envelopes and machine-readable codes.
  */
@@ -17,9 +17,9 @@ class AdminGameCrudIT : RealPortIT() {
         """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":$scoreA,"scoreB":$scoreB}"""
 
     @Test
-    fun `create game with null scores returns 201 and preserves null`() {
+    fun `create game with zero scores returns 201`() {
         val f = refs("CN")
-        val res = assertStatus(post(adminPort, "/api/admin/games", gameJson(f, "null", "null")), 201, "POST games")
+        val res = assertStatus(post(adminPort, "/api/admin/games", gameJson(f, "0", "0")), 201, "POST games")
         val data = dataOf(res, "POST games")
         assertTrue(data.path("gameId").isTextual(), "gameId must be a string: $data")
         assertEquals(f.roundId, data.path("roundId").asText())
@@ -27,14 +27,35 @@ class AdminGameCrudIT : RealPortIT() {
         assertEquals(f.teamA, data.path("teamAId").asText())
         assertEquals(f.teamB, data.path("teamBId").asText())
         assertEquals(f.referee, data.path("refereeTeamId").asText())
-        assertTrue(data.path("scoreA").isNull(), "scoreA must stay null: $data")
-        assertTrue(data.path("scoreB").isNull(), "scoreB must stay null: $data")
-        // And readable through the public API with nulls intact.
+        assertEquals(0, data.path("scoreA").asInt())
+        assertEquals(0, data.path("scoreB").asInt())
+        // And readable through the public API with numeric scores.
         val viaPublic = dataOf(
             assertStatus(get(publicPort, "/api/games/${data.path("gameId").asText()}"), 200, "GET game"),
             "GET game"
         )
-        assertTrue(viaPublic.path("scoreA").isNull() && viaPublic.path("scoreB").isNull())
+        assertEquals(0, viaPublic.path("scoreA").asInt())
+        assertEquals(0, viaPublic.path("scoreB").asInt())
+    }
+
+    @Test
+    fun `create game defaults omitted scores to 0`() {
+        val f = refs("CO")
+        val body = gameJson(f, "0", "0")
+            .replace(""", "scoreA":0,"scoreB":0""", "")
+        val res = assertStatus(post(adminPort, "/api/admin/games", body), 201, "POST games without scores")
+        val data = dataOf(res, "POST games without scores")
+        assertEquals(0, data.path("scoreA").asInt(), "omitted scoreA must default to 0: $data")
+        assertEquals(0, data.path("scoreB").asInt(), "omitted scoreB must default to 0: $data")
+    }
+
+    @Test
+    fun `create game rejects explicit null scores with 400`() {
+        val f = refs("CX")
+        assertError(
+            post(adminPort, "/api/admin/games", gameJson(f, "null", "null")),
+            400, "BAD_REQUEST", "POST games with null scores"
+        )
     }
 
     @Test
@@ -112,22 +133,89 @@ class AdminGameCrudIT : RealPortIT() {
     fun `update game replaces the full object including scores`() {
         val f = refs("UG")
         val res = assertStatus(
-            put(adminPort, "/api/admin/games/${f.unstartedGame}", gameJson(f, "18", "21")),
+            put(adminPort, "/api/admin/games/${f.freshGame}", gameJson(f, "18", "21")),
             200, "PUT game"
         )
         val data = dataOf(res, "PUT game")
-        assertEquals(f.unstartedGame.toString(), data.path("gameId").asText())
+        assertEquals(f.freshGame.toString(), data.path("gameId").asText())
         assertEquals(18, data.path("scoreA").asInt())
         assertEquals(21, data.path("scoreB").asInt())
-        // Null clears a score back to "not played".
-        val cleared = dataOf(
+    }
+
+    @Test
+    fun `update game changes team A score only`() {
+        val f = refs("UA")
+        val data = dataOf(
             assertStatus(
-                put(adminPort, "/api/admin/games/${f.unstartedGame}", gameJson(f, "null", "null")),
-                200, "PUT game clearing scores"
+                put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "6", "3")),
+                200, "PUT game changing scoreA"
             ),
-            "PUT game clearing scores"
+            "PUT game changing scoreA"
         )
-        assertTrue(cleared.path("scoreA").isNull() && cleared.path("scoreB").isNull())
+        assertEquals(6, data.path("scoreA").asInt())
+        assertEquals(3, data.path("scoreB").asInt())
+    }
+
+    @Test
+    fun `update game changes team B score only`() {
+        val f = refs("UB")
+        val data = dataOf(
+            assertStatus(
+                put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "5", "4")),
+                200, "PUT game changing scoreB"
+            ),
+            "PUT game changing scoreB"
+        )
+        assertEquals(5, data.path("scoreA").asInt())
+        assertEquals(4, data.path("scoreB").asInt())
+    }
+
+    @Test
+    fun `update game changes both scores`() {
+        val f = refs("UO")
+        val data = dataOf(
+            assertStatus(
+                put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "20", "18")),
+                200, "PUT game changing both scores"
+            ),
+            "PUT game changing both scores"
+        )
+        assertEquals(20, data.path("scoreA").asInt())
+        assertEquals(18, data.path("scoreB").asInt())
+    }
+
+    @Test
+    fun `update game rejects negative scores with 400 and keeps state`() {
+        val f = refs("UE")
+        assertError(
+            put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "-1", "9")),
+            400, "BAD_REQUEST", "PUT game with negative scoreA"
+        )
+        assertError(
+            put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "9", "-2")),
+            400, "BAD_REQUEST", "PUT game with negative scoreB"
+        )
+        val game = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game"),
+            "GET game"
+        )
+        assertEquals(5, game.path("scoreA").asInt(), "failed update must not modify state: $game")
+        assertEquals(3, game.path("scoreB").asInt(), "failed update must not modify state: $game")
+    }
+
+    @Test
+    fun `update game rejects null scores with 400 and keeps state`() {
+        val f = refs("UN")
+        assertError(
+            put(adminPort, "/api/admin/games/${f.playedGame}", gameJson(f, "null", "9")),
+            400, "BAD_REQUEST", "PUT game with null scoreA"
+        )
+        val game = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game"),
+            "GET game"
+        )
+        assertEquals(5, game.path("scoreA").asInt(), "failed update must not modify state: $game")
+        assertEquals(3, game.path("scoreB").asInt(), "failed update must not modify state: $game")
     }
 
     @Test
@@ -139,7 +227,7 @@ class AdminGameCrudIT : RealPortIT() {
         )
         val badRound = gameJson(f, "0", "0").replace(""""roundId":${f.roundId}""", """"roundId":999999999""")
         assertError(
-            put(adminPort, "/api/admin/games/${f.unstartedGame}", badRound),
+            put(adminPort, "/api/admin/games/${f.freshGame}", badRound),
             400, "BAD_REQUEST", "PUT game with missing round"
         )
     }
@@ -147,10 +235,10 @@ class AdminGameCrudIT : RealPortIT() {
     @Test
     fun `delete game returns 204 with empty body`() {
         val f = refs("DG")
-        val res = assertStatus(delete(adminPort, "/api/admin/games/${f.unstartedGame}"), 204, "DELETE game")
+        val res = assertStatus(delete(adminPort, "/api/admin/games/${f.freshGame}"), 204, "DELETE game")
         assertTrue(res.body().isEmpty(), "DELETE must return an empty body")
         assertError(
-            get(publicPort, "/api/games/${f.unstartedGame}"),
+            get(publicPort, "/api/games/${f.freshGame}"),
             404, "RESOURCE_NOT_FOUND", "GET deleted game"
         )
     }

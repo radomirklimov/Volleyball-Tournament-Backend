@@ -1,5 +1,12 @@
 # OpenCode Prompt — Separate Public and Admin APIs by Port
 
+> **NOTE (score increment/decrement removed):** the four
+> `POST /api/games/{id}/score/…` endpoints referenced in this document no
+> longer exist (they return `404`). Scores are changed exclusively via
+> `PUT /api/admin/games/{id}`. Only `POST /api/games/{id}/start` remains
+> (admin port only, read-only no-op). The port-separation contract is
+> otherwise unchanged.
+
 ## Task
 
 Modify the existing Kotlin + Spring Boot Volleyball Tournament backend so that it remains **one application, one project/module, and one MariaDB database**, but exposes **two logically separated API surfaces on different HTTP ports**.

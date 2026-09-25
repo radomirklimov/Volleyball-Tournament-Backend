@@ -39,8 +39,6 @@ http://localhost:8081                      ADMIN
   POST   /api/admin/fields  PUT  /api/admin/fields/{id}  DELETE /api/admin/fields/{id}
   POST   /api/admin/rounds  PUT  /api/admin/rounds/{id}  DELETE /api/admin/rounds/{id}
   POST /api/games/{id}/start
-  POST /api/games/{id}/score/team-a/increment   POST /api/games/{id}/score/team-a/decrement
-  POST /api/games/{id}/score/team-b/increment   POST /api/games/{id}/score/team-b/decrement
 ```
 
 
@@ -169,12 +167,8 @@ round ID:
 
 ### Score values
 
-`scoreA` / `scoreB` are a number or `null`:
-
-- `null` = game has not started yet (show as "–" or "vs", not `0`);
-- `0` or greater = game has started, this is the current score.
-
-Do not convert `null` to `0` when rendering.
+`scoreA` / `scoreB` are always numbers (`0` or greater) — the current score.
+Scores are never `null`.
 
 ---
 
@@ -273,56 +267,45 @@ Rules (all violations → `400`):
 
 - `roundId`, `fieldId`, `teamAId`, `teamBId`, `refereeTeamId` are required and
   must reference existing rows.
-- `scoreA`, `scoreB` are optional: a non-negative integer or `null` (omit them
-  or send `null` for games not yet played). Negative scores → `400`.
+- `scoreA`, `scoreB` are required non-negative integers (omit them to default
+  to `0`). Negative scores → `400`; explicit `null` → `400`.
 - `teamAId` and `teamBId` must be different teams.
 - `refereeTeamId` must differ from both `teamAId` and `teamBId`.
 
 → `201` + created game.
 
 Update — `PUT /api/admin/games/{id}` (incl. score updates): send the full
-object; for a score change just resend everything with the new scores. Sending
-`"scoreA": null` clears a score back to "not played". Same validation as
-create. Missing game → `404`. → `200`.
+object; for a score change just resend everything with the new scores. Same
+validation as create. Missing game → `404`. → `200`.
 
 Delete — `DELETE /api/admin/games/{id}`: missing game → `404`, otherwise → `204`.
 
 ---
 
-## 4. Admin game scoring — `http://localhost:8081` (button actions)
+## 4. Admin game scoring — `http://localhost:8081`
 
-Five endpoints, empty `POST`, no request body. They live under `/api/games/…`
-(not `/api/admin/…`) but are reachable **only** on port `8081`:
+Scores are changed exclusively through the admin game CRUD API: send the
+complete game object with the new scores via
+`PUT /api/admin/games/{id}` (see §3). There are no dedicated
+increment/decrement endpoints.
+
+The remaining button-style endpoint lives under `/api/games/…`
+(not `/api/admin/…`) but is reachable **only** on port `8081`:
 
 ```http
 POST /api/games/{id}/start
-POST /api/games/{id}/score/team-a/increment
-POST /api/games/{id}/score/team-a/decrement
-POST /api/games/{id}/score/team-b/increment
-POST /api/games/{id}/score/team-b/decrement
 ```
 
-All return `200` + the updated game in the `data` envelope, so no extra `GET`
-is needed after a click. Only the addressed team's score changes; rapid
-clicking is safe — concurrent increments are serialized server-side and none
-get lost.
-
-| Endpoint | Effect |
-|---|---|
-| `…/start` | `null/null` → `0/0`. Idempotent: an already started game keeps its scores (and then sends no live event). |
-| `…/team-a/increment` | `scoreA + 1`. Unstarted game → `409`. |
-| `…/team-a/decrement` | `scoreA − 1`, never below `0`. Unstarted game or `scoreA == 0` → `409`. |
-| `…/team-b/increment` | `scoreB + 1`. Unstarted game → `409`. |
-| `…/team-b/decrement` | `scoreB − 1`, never below `0`. Unstarted game or `scoreB == 0` → `409`. |
+It returns `200` + the game in the `data` envelope. It never modifies the
+game: scores are always non-null integers, so the game is returned unchanged
+and no live event is sent.
 
 Error cases:
 
 - Non-numeric `{id}` → `400`.
 - Missing game → `404`.
-- `409` responses carry a message, e.g. `"Game 15 has not been started."` or
-  `"Team A score cannot be decreased below 0."` — show it to the admin user.
 
-Example — start an unstarted game:
+Example:
 
 ```http
 POST http://localhost:8081/api/games/15/start
@@ -343,11 +326,31 @@ POST http://localhost:8081/api/games/15/start
 }
 ```
 
+Example — changing a score during a match:
+
+```http
+PUT http://localhost:8081/api/admin/games/15
+```
+
+```json
+{
+  "roundId": 1,
+  "fieldId": 1,
+  "teamAId": 3,
+  "teamBId": 4,
+  "refereeTeamId": 5,
+  "scoreA": 12,
+  "scoreB": 9
+}
+```
+
+→ `200` + the updated game in the `data` envelope. Negative scores → `400`.
+
 ---
 
 ## 5. Live updates (public WebSocket)
 
-Every successful admin write (CRUD or scoring) broadcasts exactly one event;
+Every successful admin write (CRUD) broadcasts exactly one event;
 failed writes broadcast nothing. This is how the public page learns about
 changes without polling.
 
@@ -383,12 +386,13 @@ Frontend handling rule:
 
 **Score update during a match (admin):**
 
-1. `POST http://localhost:8081/api/games/{id}/score/team-a/increment` → `200`, use `response.data` directly.
+1. `PUT http://localhost:8081/api/admin/games/{id}` with the full game object
+   and new `scoreA`/`scoreB` → `200`, use `response.data` directly.
 2. All connected public clients receive `GAME / UPDATE` and refresh via REST.
 
 **Starting a match (admin):**
 
-1. `POST http://localhost:8081/api/games/{id}/start` → `200`, scores are now `0/0`.
+1. `POST http://localhost:8081/api/games/{id}/start` → `200`, returns the game unchanged.
 
 **Adding a new team (admin):**
 
@@ -406,7 +410,7 @@ Frontend handling rule:
 204       → remove item from local state
 400       → show response.error.message next to the form (user input problem)
 404       → item is gone, reload the list (or: wrong port — check the base URL)
-409       → show response.error.message (duplicate name, item still in use, or illegal scoring action)
+409       → show response.error.message (duplicate name or item still in use)
 500       → generic "server error, try again" message
 + WS event → re-fetch affected data via the public GET endpoints
 ```

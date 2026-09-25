@@ -33,41 +33,51 @@ class RealtimeIT : RealPortIT() {
     }
 
     @Test
-    fun `start emits one game update event`() {
+    fun `start emits no event because nothing changes`() {
         val f = newFixture("ES")
         val collector = Collector()
         val session = connectWs(publicPort, collector)
         try {
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/start"), 200, "POST start")
-            assertLiveEvent(awaitEvent(collector, "start"), "GAME", "UPDATE", f.unstartedGame)
+            assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start")
+            assertStatus(post(adminPort, "/api/games/${f.playedGame}/start"), 200, "POST start on played game")
             assertNoEvent(collector, "start")
+            // Scores are untouched by start.
+            val game = dataOf(
+                assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game"),
+                "GET game"
+            )
+            assertEquals(5, game.path("scoreA").asInt())
+            assertEquals(3, game.path("scoreB").asInt())
         } finally {
             session.close()
         }
     }
 
     @Test
-    fun `all four score operations emit game update events`() {
-        val f = newFixture("EO")
+    fun `PUT score change emits one game update event`() {
+        val f = newFixture("EU")
         val collector = Collector()
         val session = connectWs(publicPort, collector)
         try {
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/start"), 200, "POST start")
-            assertLiveEvent(awaitEvent(collector, "start"), "GAME", "UPDATE", f.unstartedGame)
+            assertStatus(
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":6,"scoreB":3}"""
+                ),
+                200, "PUT scoreA 0 -> 6"
+            )
+            assertLiveEvent(awaitEvent(collector, "PUT score change"), "GAME", "UPDATE", f.freshGame)
 
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/score/team-a/increment"), 200, "inc A")
-            assertLiveEvent(awaitEvent(collector, "inc A"), "GAME", "UPDATE", f.unstartedGame)
+            assertStatus(
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":6,"scoreB":4}"""
+                ),
+                200, "PUT scoreB 3 -> 4"
+            )
+            assertLiveEvent(awaitEvent(collector, "PUT scoreB change"), "GAME", "UPDATE", f.freshGame)
 
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/score/team-a/decrement"), 200, "dec A")
-            assertLiveEvent(awaitEvent(collector, "dec A"), "GAME", "UPDATE", f.unstartedGame)
-
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/score/team-b/increment"), 200, "inc B")
-            assertLiveEvent(awaitEvent(collector, "inc B"), "GAME", "UPDATE", f.unstartedGame)
-
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/score/team-b/decrement"), 200, "dec B")
-            assertLiveEvent(awaitEvent(collector, "dec B"), "GAME", "UPDATE", f.unstartedGame)
-
-            assertNoEvent(collector, "score operations")
+            assertNoEvent(collector, "score updates")
         } finally {
             session.close()
         }
@@ -79,7 +89,7 @@ class RealtimeIT : RealPortIT() {
         val collector = Collector()
         val session = connectWs(publicPort, collector)
         try {
-            val created = createGame(f.roundId, f.fieldId, f.teamA, f.teamB, f.referee, null, null)
+            val created = createGame(f.roundId, f.fieldId, f.teamA, f.teamB, f.referee, 0, 0)
             val gameId = created.path("gameId").asText().toInt()
             assertLiveEvent(awaitEvent(collector, "create game"), "GAME", "CREATE", gameId)
 
@@ -128,19 +138,30 @@ class RealtimeIT : RealPortIT() {
                 post(adminPort, "/api/admin/groups", """{"name":""}"""),
                 400, "BAD_REQUEST", "POST invalid group"
             )
-            // Business-rule conflict.
+            // Invalid game update: unknown round.
             assertError(
-                post(adminPort, "/api/games/${f.unstartedGame}/score/team-a/increment"),
-                409, "CONFLICT", "POST inc on unstarted game"
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":999999999,"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":1,"scoreB":2}"""
+                ),
+                400, "BAD_REQUEST", "PUT game with missing round"
             )
-            // Floor conflict.
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/start"), 200, "POST start")
-            awaitEvent(collector, "start")
+            // Invalid game update: negative score.
             assertError(
-                post(adminPort, "/api/games/${f.unstartedGame}/score/team-b/decrement"),
-                409, "CONFLICT", "POST dec B at zero"
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":-1,"scoreB":2}"""
+                ),
+                400, "BAD_REQUEST", "PUT game with negative score"
             )
             // Missing entity.
+            assertError(
+                put(
+                    adminPort, "/api/admin/games/999999999",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":1,"scoreB":2}"""
+                ),
+                404, "RESOURCE_NOT_FOUND", "PUT missing game"
+            )
             assertError(delete(adminPort, "/api/admin/games/999999999"), 404, "RESOURCE_NOT_FOUND", "DELETE missing game")
 
             assertNoEvent(collector, "failed writes")
@@ -157,9 +178,15 @@ class RealtimeIT : RealPortIT() {
         val sessionA = connectWs(publicPort, first)
         val sessionB = connectWs(publicPort, second)
         try {
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/start"), 200, "POST start")
-            assertLiveEvent(awaitEvent(first, "client A"), "GAME", "UPDATE", f.unstartedGame)
-            assertLiveEvent(awaitEvent(second, "client B"), "GAME", "UPDATE", f.unstartedGame)
+            assertStatus(
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":1,"scoreB":2}"""
+                ),
+                200, "PUT game"
+            )
+            assertLiveEvent(awaitEvent(first, "client A"), "GAME", "UPDATE", f.freshGame)
+            assertLiveEvent(awaitEvent(second, "client B"), "GAME", "UPDATE", f.freshGame)
         } finally {
             sessionA.close()
             sessionB.close()
@@ -175,8 +202,14 @@ class RealtimeIT : RealPortIT() {
         val sessionB = connectWs(publicPort, staying)
         sessionA.close()
         try {
-            assertStatus(post(adminPort, "/api/games/${f.unstartedGame}/start"), 200, "POST start")
-            assertLiveEvent(awaitEvent(staying, "remaining client"), "GAME", "UPDATE", f.unstartedGame)
+            assertStatus(
+                put(
+                    adminPort, "/api/admin/games/${f.freshGame}",
+                    """{"roundId":${f.roundId},"fieldId":${f.fieldId},"teamAId":${f.teamA},"teamBId":${f.teamB},"refereeTeamId":${f.referee},"scoreA":1,"scoreB":2}"""
+                ),
+                200, "PUT game"
+            )
+            assertLiveEvent(awaitEvent(staying, "remaining client"), "GAME", "UPDATE", f.freshGame)
         } finally {
             sessionB.close()
         }

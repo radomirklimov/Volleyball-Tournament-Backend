@@ -152,15 +152,13 @@ abstract class RealPortIT {
         teamA: String,
         teamB: String,
         referee: String,
-        scoreA: Int?,
-        scoreB: Int?
+        scoreA: Int,
+        scoreB: Int
     ): JsonNode {
-        val scoreJson = if (scoreA == null && scoreB == null) """, "scoreA":null,"scoreB":null"""
-        else """, "scoreA":$scoreA,"scoreB":$scoreB"""
         val res = assertStatus(
             post(
                 adminPort, "/api/admin/games",
-                """{"roundId":$roundId,"fieldId":$fieldId,"teamAId":$teamA,"teamBId":$teamB,"refereeTeamId":$referee$scoreJson}"""
+                """{"roundId":$roundId,"fieldId":$fieldId,"teamAId":$teamA,"teamBId":$teamB,"refereeTeamId":$referee,"scoreA":$scoreA,"scoreB":$scoreB}"""
             ),
             201, "create game"
         )
@@ -170,8 +168,8 @@ abstract class RealPortIT {
     /**
      * Deterministic fixture structure (unique values per call, spec-aligned
      * roles): two groups, Team A + Team B as players, Team C as referee, one
-     * round, one court, one unstarted game (NULL/NULL) and one started game
-     * (5/3).
+     * round, one court, one fresh game (0/0) and one played game (5/3).
+     * Scores are always non-null integers.
      */
     protected data class Fixture(
         val groupA: String,
@@ -182,8 +180,8 @@ abstract class RealPortIT {
         val roundId: String,
         val roundNumber: Int,
         val fieldId: String,
-        val unstartedGame: Int,
-        val startedGame: Int
+        val freshGame: Int,
+        val playedGame: Int
     )
 
     protected fun newFixture(prefix: String = "F"): Fixture {
@@ -196,11 +194,11 @@ abstract class RealPortIT {
         val roundNumber = Random.nextInt(1000000, 9000000)
         val roundId = createRound(roundNumber).path("roundId").asText()
         val fieldId = createField("Court $tag").path("fieldId").asText()
-        val unstartedGame = createGame(roundId, fieldId, teamA, teamB, referee, null, null)
+        val freshGame = createGame(roundId, fieldId, teamA, teamB, referee, 0, 0)
             .path("gameId").asText().toInt()
-        val startedGame = createGame(roundId, fieldId, teamA, teamB, referee, 5, 3)
+        val playedGame = createGame(roundId, fieldId, teamA, teamB, referee, 5, 3)
             .path("gameId").asText().toInt()
-        return Fixture(groupA, groupB, teamA, teamB, referee, roundId, roundNumber, fieldId, unstartedGame, startedGame)
+        return Fixture(groupA, groupB, teamA, teamB, referee, roundId, roundNumber, fieldId, freshGame, playedGame)
     }
 
     // ---- websocket ----

@@ -1,5 +1,12 @@
 # Game Scoring Endpoints – OpenCode Specification
 
+> **SUPERSEDED (score increment/decrement removed):** the four
+> `POST /api/games/{id}/score/…` endpoints described in this document no
+> longer exist (they return `404`). Scores are changed exclusively via
+> `PUT /api/admin/games/{id}` with the complete game object. Only
+> `POST /api/games/{id}/start` remains, as a read-only no-op returning the
+> game unchanged. This document is kept as a historical record.
+
 ## 1. Purpose
 
 Implement backend endpoints that allow a teacher to control the score of an individual volleyball game with simple button actions.

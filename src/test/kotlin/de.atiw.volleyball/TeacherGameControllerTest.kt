@@ -109,21 +109,32 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `createGame accepts null scores`() {
+    fun `createGame defaults omitted scores to 0`() {
         val s = setup()
+        val body = gameBody(s).toMutableMap().apply { remove("scoreA"); remove("scoreB") }
 
         val result = mockMvc.post("/api/admin/games") {
             contentType = MediaType.APPLICATION_JSON
-            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
+            content = objectMapper.writeValueAsString(body)
         }.andExpect { status { isCreated() } }.andReturn()
 
         val data = objectMapper.readTree(result.response.contentAsString).get("data")
-        assert(data.get("scoreA").isNull)
-        assert(data.get("scoreB").isNull)
+        assert(data.get("scoreA").asInt() == 0)
+        assert(data.get("scoreB").asInt() == 0)
     }
 
     @Test
-    fun `updateGame can clear scores to null`() {
+    fun `createGame rejects explicit null scores with 400`() {
+        val s = setup()
+
+        mockMvc.post("/api/admin/games") {
+            contentType = MediaType.APPLICATION_JSON
+            content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
+        }.andExpect { status { isBadRequest() } }
+    }
+
+    @Test
+    fun `updateGame rejects null scores with 400`() {
         val s = setup()
         val round = roundRepository.findById(s.roundId).orElseThrow()
         val field = fieldRepository.findById(s.fieldId).orElseThrow()
@@ -132,14 +143,13 @@ class TeacherGameControllerTest : AbstractIntegrationTest() {
         val ref = teamRepository.findById(s.refereeId).orElseThrow()
         val game = gameRepository.save(Game(round = round, field = field, teamA = teamA, teamB = teamB, refereeTeam = ref, pointsA = 25, pointsB = 21))
 
-        val result = mockMvc.put("/api/admin/games/${game.gameId}") {
+        mockMvc.put("/api/admin/games/${game.gameId}") {
             contentType = MediaType.APPLICATION_JSON
             content = objectMapper.writeValueAsString(gameBody(s, mapOf("scoreA" to null, "scoreB" to null)))
-        }.andExpect { status { isOk() } }.andReturn()
+        }.andExpect { status { isBadRequest() } }
 
-        val data = objectMapper.readTree(result.response.contentAsString).get("data")
-        assert(data.get("scoreA").isNull)
-        assert(data.get("scoreB").isNull)
+        val reloaded = gameRepository.findById(game.gameId).orElseThrow()
+        assert(reloaded.pointsA == 25 && reloaded.pointsB == 21)
     }
 
     @Test

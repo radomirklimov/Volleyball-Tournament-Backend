@@ -11,9 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * Button-action scoring for admins. No request bodies — the endpoint fully
- * describes the action. Every state-changing call publishes a realtime event
- * after commit via [GameService].
+ * Game start action for admins. Scores are changed exclusively through the
+ * admin game CRUD API (`PUT /api/admin/games/{id}`); this controller only
+ * exposes the idempotent `/start` operation, which never modifies the game
+ * and therefore emits no realtime event.
  */
 @RestController
 @RequestMapping("/api/games")
@@ -23,22 +24,6 @@ class GameScoringController(
     @PostMapping("/{id}/start")
     fun start(@PathVariable id: String): DataEnvelope<GameDto> =
         DataEnvelope(gameService.startGame(numericId(id)).toDto())
-
-    @PostMapping("/{id}/score/team-a/increment")
-    fun incrementTeamA(@PathVariable id: String): DataEnvelope<GameDto> =
-        DataEnvelope(gameService.incrementTeamAScore(numericId(id)).toDto())
-
-    @PostMapping("/{id}/score/team-a/decrement")
-    fun decrementTeamA(@PathVariable id: String): DataEnvelope<GameDto> =
-        DataEnvelope(gameService.decrementTeamAScore(numericId(id)).toDto())
-
-    @PostMapping("/{id}/score/team-b/increment")
-    fun incrementTeamB(@PathVariable id: String): DataEnvelope<GameDto> =
-        DataEnvelope(gameService.incrementTeamBScore(numericId(id)).toDto())
-
-    @PostMapping("/{id}/score/team-b/decrement")
-    fun decrementTeamB(@PathVariable id: String): DataEnvelope<GameDto> =
-        DataEnvelope(gameService.decrementTeamBScore(numericId(id)).toDto())
 
     private fun numericId(id: String): Int =
         id.toIntOrNull() ?: throw BadRequestException("Game ID must be numeric.")

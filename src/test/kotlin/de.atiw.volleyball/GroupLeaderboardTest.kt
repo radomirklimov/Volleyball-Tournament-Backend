@@ -55,7 +55,7 @@ class GroupLeaderboardTest : AbstractIntegrationTest() {
         return Fixture(g, teams, round1, field)
     }
 
-    private fun game(round: Round, field: Field, a: Team, b: Team, ref: Team, scoreA: Int?, scoreB: Int?): Game =
+    private fun game(round: Round, field: Field, a: Team, b: Team, ref: Team, scoreA: Int, scoreB: Int): Game =
         gameRepository.save(Game(round = round, field = field, teamA = a, teamB = b, refereeTeam = ref, pointsA = scoreA, pointsB = scoreB))
 
     @Test
@@ -150,10 +150,10 @@ class GroupLeaderboardTest : AbstractIntegrationTest() {
     }
 
     @Test
-    fun `NULL scores contribute zero`() {
+    fun `zero scores contribute zero`() {
         val f = baseFixture(teamNames = listOf("A", "B"))
         val (a, b) = f.teams
-        game(f.round1, f.field, a, b, a, null, null)
+        game(f.round1, f.field, a, b, a, 0, 0)
 
         mockMvc.get("/api/groups/${f.group.groupId}/leaderboard")
             .andExpect {

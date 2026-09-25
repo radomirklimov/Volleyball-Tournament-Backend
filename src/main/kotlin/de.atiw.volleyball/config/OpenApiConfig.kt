@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration
  * [PortIsolationFilter] enforces it):
  *
  * - `public` group -> port 8080 (read-only API + realtime)
- * - `admin` group -> port 8081 (CRUD + game scoring control)
+ * - `admin` group -> port 8081 (CRUD + game start action)
  */
 @Configuration
 class OpenApiConfig {
@@ -40,8 +40,7 @@ class OpenApiConfig {
         .group("admin")
         .pathsToMatch(
             "/api/admin/**",
-            "/api/games/*/start",
-            "/api/games/*/score/**"
+            "/api/games/*/start"
         )
         .build()
 }

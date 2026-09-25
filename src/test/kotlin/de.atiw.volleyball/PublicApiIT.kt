@@ -7,8 +7,8 @@ import kotlin.random.Random
 
 /**
  * Public read API contract on port 8080 (real HTTP):
- * response envelopes, DTO shapes, string IDs, nullable scores and the game
- * filter behaviors.
+ * response envelopes, DTO shapes, string IDs, numeric scores and the game
+ * filter behaviors. Scores are always non-null integers.
  */
 class PublicApiIT : RealPortIT() {
 
@@ -94,26 +94,28 @@ class PublicApiIT : RealPortIT() {
     }
 
     @Test
-    fun `games list and single game preserve nullable scores`() {
+    fun `games list and single game always return numeric scores`() {
         val f = newFixture("M")
         val list = dataOf(assertStatus(get(publicPort, "/api/games"), 200, "GET games"), "GET games")
         assertTrue(list.isArray && list.size() >= 2, "expected game list, got: ${list.size()}")
 
-        val unstarted = dataOf(
-            assertStatus(get(publicPort, "/api/games/${f.unstartedGame}"), 200, "GET unstarted game"),
-            "GET unstarted game"
+        val fresh = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET fresh game"),
+            "GET fresh game"
         )
-        assertCompleteGameDto(unstarted, f.unstartedGame.toString(), f)
-        assertTrue(unstarted.path("scoreA").isNull(), "scoreA must stay null: $unstarted")
-        assertTrue(unstarted.path("scoreB").isNull(), "scoreB must stay null: $unstarted")
+        assertCompleteGameDto(fresh, f.freshGame.toString(), f)
+        assertTrue(fresh.path("scoreA").isInt, "scoreA must be numeric: $fresh")
+        assertTrue(fresh.path("scoreB").isInt, "scoreB must be numeric: $fresh")
+        assertEquals(0, fresh.path("scoreA").asInt())
+        assertEquals(0, fresh.path("scoreB").asInt())
 
-        val started = dataOf(
-            assertStatus(get(publicPort, "/api/games/${f.startedGame}"), 200, "GET started game"),
-            "GET started game"
+        val played = dataOf(
+            assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET played game"),
+            "GET played game"
         )
-        assertCompleteGameDto(started, f.startedGame.toString(), f)
-        assertEquals(5, started.path("scoreA").asInt())
-        assertEquals(3, started.path("scoreB").asInt())
+        assertCompleteGameDto(played, f.playedGame.toString(), f)
+        assertEquals(5, played.path("scoreA").asInt())
+        assertEquals(3, played.path("scoreB").asInt())
     }
 
     private fun assertCompleteGameDto(game: com.fasterxml.jackson.databind.JsonNode, id: String, f: Fixture) {
@@ -138,14 +140,14 @@ class PublicApiIT : RealPortIT() {
         val otherRound = createRound(Random.nextInt(10000000, 19999999)).path("roundId").asText()
         val fieldId = createField("Court $tag").path("fieldId").asText()
 
-        fun game(round: String, a: String, b: String, ref: String, scoreA: String, scoreB: String) {
-            createGame(round, fieldId, a, b, ref, scoreA.toIntOrNull(), scoreB.toIntOrNull())
+        fun game(round: String, a: String, b: String, ref: String, scoreA: Int, scoreB: Int) {
+            createGame(round, fieldId, a, b, ref, scoreA, scoreB)
         }
 
-        game(round1, teamA, teamB, teamC, "10", "8")      // A += 10, B += 8
-        game(round1, teamA, teamC, teamB, "5", "5")       // A += 5, C += 5 (refereeing game 1 gives C nothing)
-        game(otherRound, teamB, teamC, teamA, "100", "100") // other rounds do not count
-        game(round1, teamA, teamB, teamC, "null", "null") // unstarted games contribute 0
+        game(round1, teamA, teamB, teamC, 10, 8)      // A += 10, B += 8
+        game(round1, teamA, teamC, teamB, 5, 5)       // A += 5, C += 5 (refereeing game 1 gives C nothing)
+        game(otherRound, teamB, teamC, teamA, 100, 100) // other rounds do not count
+        game(round1, teamA, teamB, teamC, 0, 0) // scoreless games contribute 0
 
         val board = dataOf(
             assertStatus(get(publicPort, "/api/groups/$groupId/leaderboard"), 200, "GET leaderboard"),
@@ -191,8 +193,8 @@ class PublicApiIT : RealPortIT() {
         )
         assertTrue(res.isArray, "filter must return a list: $res")
         val ids = res.map { it.path("gameId").asText() }
-        assertTrue(ids.contains(f.unstartedGame.toString()), "unstarted game must match: $ids")
-        assertTrue(ids.contains(f.startedGame.toString()), "started game must match: $ids")
+        assertTrue(ids.contains(f.freshGame.toString()), "fresh game must match: $ids")
+        assertTrue(ids.contains(f.playedGame.toString()), "played game must match: $ids")
     }
 
     @Test

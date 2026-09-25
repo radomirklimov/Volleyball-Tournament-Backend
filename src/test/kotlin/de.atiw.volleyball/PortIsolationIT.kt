@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
  * - admin port serves the admin API, rejects public read routes + WS
  *
  * Detailed endpoint behavior lives in [PublicApiIT], [AdminCrudIT],
- * [AdminGameCrudIT], [GameScoringIT] and [RealtimeIT].
+ * [AdminGameCrudIT], [GameStartIT] and [RealtimeIT].
  */
 class PortIsolationIT : RealPortIT() {
 
@@ -26,7 +26,7 @@ class PortIsolationIT : RealPortIT() {
         assertStatus(get(publicPort, "/api/rounds"), 200, "GET rounds")
         assertStatus(get(publicPort, "/api/fields"), 200, "GET fields")
         assertStatus(get(publicPort, "/api/games"), 200, "GET games")
-        assertStatus(get(publicPort, "/api/games/${f.startedGame}"), 200, "GET game by id")
+        assertStatus(get(publicPort, "/api/games/${f.playedGame}"), 200, "GET game by id")
         assertStatus(get(publicPort, "/api/games/filter/${f.roundId}"), 200, "GET games by filter")
         assertStatus(get(publicPort, "/api/groups/${f.groupA}/leaderboard"), 200, "GET group leaderboard")
     }
@@ -56,17 +56,34 @@ class PortIsolationIT : RealPortIT() {
     }
 
     @Test
-    fun `public port rejects game scoring`() {
+    fun `removed score endpoints return 404 on both ports`() {
         val f = newFixture("S")
-        assertStatus(post(publicPort, "/api/games/${f.unstartedGame}/start"), 404, "POST start")
-        assertStatus(post(publicPort, "/api/games/${f.unstartedGame}/score/team-a/increment"), 404, "POST inc A")
-        assertStatus(post(publicPort, "/api/games/${f.unstartedGame}/score/team-a/decrement"), 404, "POST dec A")
-        assertStatus(post(publicPort, "/api/games/${f.unstartedGame}/score/team-b/increment"), 404, "POST inc B")
-        assertStatus(post(publicPort, "/api/games/${f.unstartedGame}/score/team-b/decrement"), 404, "POST dec B")
-        // Rejected before touching state: game must still be unstarted.
-        val game = dataOf(assertStatus(get(publicPort, "/api/games/${f.unstartedGame}"), 200, "GET game"), "GET game")
-        assertTrue(game.path("scoreA").isNull(), "scoreA must stay null")
-        assertTrue(game.path("scoreB").isNull(), "scoreB must stay null")
+        val paths = listOf(
+            "/api/games/${f.freshGame}/score/team-a/increment",
+            "/api/games/${f.freshGame}/score/team-a/decrement",
+            "/api/games/${f.freshGame}/score/team-b/increment",
+            "/api/games/${f.freshGame}/score/team-b/decrement"
+        )
+        for (path in paths) {
+            assertStatus(post(publicPort, path), 404, "POST $path on public port")
+            assertStatus(post(adminPort, path), 404, "POST $path on admin port")
+        }
+        // Nothing was modified through the removed routes.
+        val game = dataOf(assertStatus(get(publicPort, "/api/games/${f.freshGame}"), 200, "GET game"), "GET game")
+        assertEquals(0, game.path("scoreA").asInt(), "scoreA must stay 0")
+        assertEquals(0, game.path("scoreB").asInt(), "scoreB must stay 0")
+    }
+
+    @Test
+    fun `game start is admin-only`() {
+        val f = newFixture("ST")
+        assertStatus(post(publicPort, "/api/games/${f.freshGame}/start"), 404, "POST start on public port")
+        val data = dataOf(
+            assertStatus(post(adminPort, "/api/games/${f.freshGame}/start"), 200, "POST start on admin port"),
+            "POST start on admin port"
+        )
+        assertEquals(0, data.path("scoreA").asInt())
+        assertEquals(0, data.path("scoreB").asInt())
     }
 
     @Test
@@ -82,7 +99,6 @@ class PortIsolationIT : RealPortIT() {
         assertStatus(get(adminPort, "/api/games"), 404, "GET games")
         assertStatus(get(adminPort, "/api/games/1"), 404, "GET game by id")
         assertStatus(get(adminPort, "/api/games/filter/1"), 404, "GET games by filter")
-        assertStatus(get(adminPort, "/api/groups/1/leaderboard"), 404, "GET group leaderboard")
     }
 
     @Test

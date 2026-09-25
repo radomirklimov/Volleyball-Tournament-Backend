@@ -9,7 +9,6 @@ import de.atiw.volleyball.repository.GameRepository
 import de.atiw.volleyball.repository.RoundRepository
 import de.atiw.volleyball.repository.TeamRepository
 import de.atiw.volleyball.admin.common.BadRequestException
-import de.atiw.volleyball.admin.common.ConflictException
 import de.atiw.volleyball.admin.common.NotFoundException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -90,47 +89,13 @@ class GameService(
     }
 
     /**
-     * Starts a game: NULL/NULL becomes 0/0. Idempotent — calling it on an
-     * already started game changes nothing and publishes no event.
+     * Idempotent start action. Scores are always non-null integers, so a game
+     * already exists in its final started state: this never changes anything
+     * and therefore publishes no realtime event.
      */
-    @Transactional
-    fun startGame(id: Int): Game {
-        val game = gameRepository.findByIdForUpdate(id) ?: throw NotFoundException("Game")
-        if (game.pointsA == null || game.pointsB == null) {
-            game.pointsA = 0
-            game.pointsB = 0
-            val saved = gameRepository.save(game)
-            events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
-            return saved
-        }
-        return game
-    }
-
-    @Transactional
-    fun incrementTeamAScore(id: Int): Game = adjustScore(id, teamB = false, delta = 1)
-
-    @Transactional
-    fun decrementTeamAScore(id: Int): Game = adjustScore(id, teamB = false, delta = -1)
-
-    @Transactional
-    fun incrementTeamBScore(id: Int): Game = adjustScore(id, teamB = true, delta = 1)
-
-    @Transactional
-    fun decrementTeamBScore(id: Int): Game = adjustScore(id, teamB = true, delta = -1)
-
-    private fun adjustScore(id: Int, teamB: Boolean, delta: Int): Game {
-        val game = gameRepository.findByIdForUpdate(id) ?: throw NotFoundException("Game")
-        val side = if (teamB) "B" else "A"
-        val current = (if (teamB) game.pointsB else game.pointsA)
-            ?: throw ConflictException("Game $id has not been started.")
-        if (delta < 0 && current == 0) {
-            throw ConflictException("Team $side score cannot be decreased below 0.")
-        }
-        if (teamB) game.pointsB = current + delta else game.pointsA = current + delta
-        val saved = gameRepository.save(game)
-        events.publishEvent(TournamentChangeEvent(EntityType.GAME, OperationType.UPDATE, saved.gameId))
-        return saved
-    }
+    @Transactional(readOnly = true)
+    fun startGame(id: Int): Game =
+        gameRepository.findById(id).orElse(null) ?: throw NotFoundException("Game")
 
     private data class ResolvedGameState(
         val round: de.atiw.volleyball.entity.Round,
@@ -138,8 +103,8 @@ class GameService(
         val teamA: de.atiw.volleyball.entity.Team,
         val teamB: de.atiw.volleyball.entity.Team,
         val referee: de.atiw.volleyball.entity.Team,
-        val pointsA: Int?,
-        val pointsB: Int?
+        val pointsA: Int,
+        val pointsB: Int
     )
 
     private fun resolveState(
@@ -162,8 +127,10 @@ class GameService(
         val referee = if (refereeTeamId == null) throw BadRequestException("Referee team ID is required.")
         else teamRepository.findById(refereeTeamId).orElse(null)
             ?: throw BadRequestException("Referee team $refereeTeamId does not exist.")
-        val pointsA = if (scoreA != null && scoreA < 0) throw BadRequestException("Score A must be >= 0.") else scoreA
-        val pointsB = if (scoreB != null && scoreB < 0) throw BadRequestException("Score B must be >= 0.") else scoreB
+        val pointsA = if (scoreA == null) throw BadRequestException("Score A is required.")
+        else if (scoreA < 0) throw BadRequestException("Score A must be >= 0.") else scoreA
+        val pointsB = if (scoreB == null) throw BadRequestException("Score B is required.")
+        else if (scoreB < 0) throw BadRequestException("Score B must be >= 0.") else scoreB
         if (teamA.teamId == teamB.teamId) throw BadRequestException("Team A and team B must be different.")
         if (referee.teamId == teamA.teamId) throw BadRequestException("Referee team must differ from team A.")
         if (referee.teamId == teamB.teamId) throw BadRequestException("Referee team must differ from team B.")

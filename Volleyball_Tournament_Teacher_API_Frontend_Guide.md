@@ -1,5 +1,11 @@
 # Volleyball Tournament — Teacher API (Frontend Guide)
 
+> **NOTE:** this document describes the superseded `/api/teacher/…` paths and
+> the removed `POST /api/games/{id}/score/…` endpoints. The current contract
+> is `/api/admin/…` on port `8081` (see
+> `Volleyball_Tournament_Frontend_API_Guide.md`); scores are changed
+> exclusively via `PUT /api/admin/games/{id}`.
+
 Base URL: same host as the public API (e.g. `http://localhost:8080`).
 
 - All teacher endpoints live under `/api/teacher/...`. Public read endpoints under `/api/...` are unchanged.

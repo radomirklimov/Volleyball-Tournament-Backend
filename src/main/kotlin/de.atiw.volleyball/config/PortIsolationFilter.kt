@@ -14,8 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter
  * - public port: only the public read API (`/`, `/api/groups…`, `/api/teams…`,
  *   `/api/rounds…`, `/api/fields…`, `GET /api/games…`) and the public
  *   WebSocket handshake (`/ws/live`). Admin routes get `404`.
- * - admin port: only the admin API (`/api/admin/…` and the scoring
- *   `POST /api/games/{id}/start|score/…` endpoints). Public read routes and
+ * - admin port: only the admin API (`/api/admin/…` and the game-start
+ *   `POST /api/games/{id}/start` endpoint). Public read routes and
  *   the public WebSocket handshake get `404`.
  *
  * Requests arriving on an unknown port (e.g. MockMvc tests, which use a
@@ -29,7 +29,7 @@ class PortIsolationFilter(
     private val ports: PortRegistry
 ) : OncePerRequestFilter() {
 
-    private val scoringPath = Regex("^/api/games/[^/]+/(start|score(/.*)?)$")
+    private val scoringPath = Regex("^/api/games/[^/]+/start$")
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -59,7 +59,7 @@ class PortIsolationFilter(
 
     private fun isAdminRoute(method: String, path: String): Boolean {
         if (path == "/api/admin" || path.startsWith("/api/admin/")) return true
-        // Scoring URLs stay under /api/games/… but are admin-only.
+        // The game-start URL stays under /api/games/… but is admin-only.
         if (method == "POST" && scoringPath.matches(path)) return true
         return false
     }
